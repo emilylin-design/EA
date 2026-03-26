@@ -1,0 +1,2262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image to Diagram - Prototype</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;600;700&family=Cabin:wght@600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Lato', sans-serif; overflow: hidden; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
+
+    
+
+// --- ServiceNow Typography ---
+// Lato: Primary body/UI font (text, labels, buttons, nav)
+// Cabin: Headers (hero 32px/700, primary 24px/700, secondary 20px/700, tertiary 16px/700)
+const FONT_BODY = "'Lato', sans-serif";
+const FONT_HEADER = "'Cabin', sans-serif";
+
+// --- Icon Components ---
+const Icons = {
+  Home: () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 10L10 3L17 10M5 8.5V16C5 16.55 5.45 17 6 17H8.5V12.5H11.5V17H14C14.55 17 15 16.55 15 16V8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  List: () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 6H16M4 10H16M4 14H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+  Doc: () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M6 3H12L16 7V16C16 16.55 15.55 17 15 17H6C5.45 17 5 16.55 5 16V4C5 3.45 5.45 3 6 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M12 3V7H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  Users: () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="8" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M3 17C3 14.24 5.24 12 8 12C10.76 12 13 14.24 13 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="14" cy="8" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M14 13C15.66 13 17 14.34 17 16" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  Settings: () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5"/><path d="M10 3V4.5M10 15.5V17M17 10H15.5M4.5 10H3M15 5L13.9 6.1M6.1 13.9L5 15M15 15L13.9 13.9M6.1 6.1L5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+  Search: () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+  Globe: () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.3"/><path d="M2 9H16M9 2C11 4.5 11 13.5 9 16M9 2C7 4.5 7 13.5 9 16" stroke="currentColor" strokeWidth="1.3"/></svg>,
+  Plus: () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2V12M2 7H12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>,
+  PlusCircle: () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="8" fill="#2D7524" stroke="#2D7524" strokeWidth="1"/><path d="M9 5V13M5 9H13" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  EditCircle: () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="8" fill="#0080A3" stroke="#0080A3" strokeWidth="1"/><path d="M6 12L6.5 10L11.5 5L13 6.5L8 11.5L6 12Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  DeleteCircle: () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="8" fill="#C8372D" stroke="#C8372D" strokeWidth="1"/><path d="M5 9H13" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  WarningCircle: () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="8" fill="#E27918" stroke="#E27918" strokeWidth="1"/><path d="M9 5.5V10M9 12V12.5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  Close: () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+  ChevronDown: () => <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  ChevronUp: () => <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 7.5L6 4.5L9 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  Edit: () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 12L2.8 9.2L9.8 2.2L11.8 4.2L4.8 11.2L2 12Z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  AppIcon: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#4A5E65" strokeWidth="1.5"/><rect x="6" y="6" width="5" height="5" rx="1" fill="#4A5E65" opacity="0.3"/><rect x="13" y="6" width="5" height="5" rx="1" fill="#4A5E65" opacity="0.3"/><rect x="6" y="13" width="5" height="5" rx="1" fill="#4A5E65" opacity="0.3"/><rect x="13" y="13" width="5" height="5" rx="1" fill="#4A5E65" opacity="0.15"/></svg>,
+  Star: () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2L9.8 5.6L14 6.2L11 9.1L11.7 13.3L8 11.4L4.3 13.3L5 9.1L2 6.2L6.2 5.6L8 2Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>,
+  Dots: () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="8" r="1.2" fill="currentColor"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="12" cy="8" r="1.2" fill="currentColor"/></svg>,
+  Info: () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2"/><path d="M8 7V11M8 5.5V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+  Sparkle: () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1L9.5 6.5L15 8L9.5 9.5L8 15L6.5 9.5L1 8L6.5 6.5L8 1Z" fill="currentColor" opacity="0.7"/></svg>,
+  Check: () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7L6 10L11 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  Upload: () => <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M16 20V8M16 8L11 13M16 8L21 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 20V24C6 25.1 6.9 26 8 26H24C25.1 26 26 25.1 26 24V20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  Zoom: () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.2"/><path d="M9 9L13 13" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M4 6H8M6 4V8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+  ZoomOut: () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.2"/><path d="M9 9L13 13" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M4 6H8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+  FitView: () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 5V2C1 1.45 1.45 1 2 1H5M9 1H12C12.55 1 13 1.45 13 2V5M13 9V12C13 12.55 12.55 13 12 13H9M5 13H2C1.45 13 1 12.55 1 12V9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+};
+
+// --- ServiceNow Horizon Button Styles ---
+const snBtn = {
+  primary: {
+    base: { background: "#0080A3", color: "white", border: "1px solid #0080A3", borderRadius: 4, fontFamily: "Lato", fontWeight: 600, cursor: "pointer", transition: "background 0.15s" },
+    hover: { background: "#00566E", borderColor: "#00566E" },
+    disabled: { background: "rgba(0,128,163,0.25)", borderColor: "transparent", color: "white", cursor: "not-allowed" },
+    sm: { height: 24, padding: "0 8px", fontSize: 12, lineHeight: "16px" },
+    md: { height: 32, padding: "0 12px", fontSize: 14, lineHeight: "20px" },
+    lg: { height: 48, padding: "0 16px", fontSize: 16, lineHeight: "24px" },
+  },
+  secondary: {
+    base: { background: "transparent", color: "#0080A3", border: "1px solid #737F84", borderRadius: 4, fontFamily: "Lato", fontWeight: 600, cursor: "pointer", transition: "all 0.15s" },
+    hover: { background: "rgba(35,46,51,0.10)", borderColor: "#4F5C62", color: "#00566E" },
+    disabled: { opacity: 0.25, cursor: "not-allowed" },
+    sm: { height: 24, padding: "0 8px", fontSize: 12 },
+    md: { height: 32, padding: "0 12px", fontSize: 14 },
+    lg: { height: 48, padding: "0 16px", fontSize: 16 },
+  },
+  tertiary: {
+    base: { background: "transparent", color: "#37444A", border: "1px solid #737F84", borderRadius: 4, fontFamily: "Lato", fontWeight: 600, cursor: "pointer", transition: "all 0.15s" },
+    hover: { background: "rgba(35,46,51,0.10)", borderColor: "#4F5C62", color: "#232E33" },
+    sm: { height: 24, padding: "0 8px", fontSize: 12 },
+    md: { height: 32, padding: "0 12px", fontSize: 14 },
+  },
+};
+
+function SNButton({ variant = "primary", size = "md", disabled, children, onClick, style: extraStyle, ...props }) {
+  const v = snBtn[variant] || snBtn.primary;
+  const s = v[size] || v.md;
+  return (
+    <button
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      onMouseEnter={(e) => { if (!disabled && v.hover) { Object.assign(e.currentTarget.style, v.hover); } }}
+      onMouseLeave={(e) => { if (!disabled) { e.currentTarget.style.background = v.base.background; e.currentTarget.style.borderColor = v.base.border?.match(/#[A-Fa-f0-9]+/)?.[0] || ""; e.currentTarget.style.color = v.base.color; } }}
+      style={{
+        ...v.base, ...s,
+        ...(disabled ? v.disabled : {}),
+        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4,
+        ...extraStyle,
+      }}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+// --- Shape Node Component for Diagrams ---
+function ShapeNode({ label, type, x, y, highlighted, selected, hasPlus, onClick, confidence }) {
+  const isLowConfidence = confidence && confidence < 70;
+  return (
+    <g transform={`translate(${x}, ${y})`} onClick={onClick} style={{ cursor: "pointer" }}>
+      <rect
+        width="148" height="56" rx="4"
+        fill={highlighted ? "#F2F9FA" : "white"}
+        stroke={selected ? "#2D7524" : highlighted ? "#0080A3" : "#BDCBD0"}
+        strokeWidth={selected || highlighted ? "2" : "1"}
+      />
+      {isLowConfidence && (
+        <rect width="148" height="56" rx="4" fill="none" stroke="#E27918" strokeWidth="2" strokeDasharray="4 2" />
+      )}
+      <g transform="translate(12, 10)">
+        <rect width="20" height="20" rx="3" fill="#E5EDF0" stroke="#BDCBD0" strokeWidth="0.5" />
+        <rect x="3" y="3" width="6" height="6" rx="1" fill="#4A5E65" opacity="0.3" />
+        <rect x="11" y="3" width="6" height="6" rx="1" fill="#4A5E65" opacity="0.3" />
+        <rect x="3" y="11" width="6" height="6" rx="1" fill="#4A5E65" opacity="0.3" />
+      </g>
+      <text x="38" y="20" fill="#172B31" fontSize="12" fontWeight="600" fontFamily="Lato, sans-serif">
+        {label.length > 14 ? label.slice(0, 14) + "…" : label}
+      </text>
+      {isLowConfidence && (
+        <g transform="translate(38, 60)">
+          <rect width="70" height="16" rx="8" fill="#FFF3E0" />
+          <text x="8" y="11.5" fill="#E27918" fontSize="9" fontWeight="600" fontFamily="Lato">{confidence}% match</text>
+        </g>
+      )}
+      {isLowConfidence && (
+        <text x="38" y="40" fill="#4A5E65" fontSize="10.5" fontFamily="Lato, sans-serif">
+          {type}
+        </text>
+      )}
+      {!isLowConfidence && (
+        <text x="38" y="40" fill="#4A5E65" fontSize="10.5" fontFamily="Lato, sans-serif">
+          {type}
+        </text>
+      )}
+      {hasPlus && (
+        <g transform="translate(138, -6)">
+          <circle cx="0" cy="0" r="9" fill="#2D7524" />
+          <path d="M-4 0H4M0-4V4" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+        </g>
+      )}
+      <g transform="translate(126, 18)" opacity="0.4">
+        <path d="M0 0L4.5-3V-1H10V1H4.5V3L0 0Z" fill="#4A5E65" />
+      </g>
+    </g>
+  );
+}
+
+// --- Connector Line ---
+function ConnectorLine({ x1, y1, x2, y2, label }) {
+  const midY = (y1 + y2) / 2;
+  return (
+    <g>
+      <path
+        d={`M${x1},${y1} L${x1},${midY} L${x2},${midY} L${x2},${y2}`}
+        fill="none" stroke="#BDCBD0" strokeWidth="1"
+      />
+      {label && (
+        <text x={(x1 + x2) / 2} y={midY - 4} fill="#4A5E65" fontSize="9" fontFamily="Lato" textAnchor="middle">
+          {label}
+        </text>
+      )}
+    </g>
+  );
+}
+
+// --- Main App ---
+function ImageToDiagram() {
+  // Inject auto-hide scrollbar styles once
+  useEffect(() => {
+    const id = "sn-scrollbar-styles";
+    if (!document.getElementById(id)) {
+      const style = document.createElement("style");
+      style.id = id;
+      style.textContent = `
+        .sn-auto-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+        .sn-auto-scroll::-webkit-scrollbar-track { background: transparent; }
+        .sn-auto-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; transition: background 0.3s; }
+        .sn-auto-scroll:hover::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.18); }
+        .sn-auto-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
+        .sn-auto-scroll { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+        .sn-auto-scroll:hover { scrollbar-color: rgba(0,0,0,0.18) transparent; }
+        .sn-pane-divider:hover .sn-divider-handle { opacity: 1 !important; }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+  const [step, setStep] = useState("upload"); // upload | processing | review | published
+  const [progress, setProgress] = useState(0);
+  const [syncScroll, setSyncScroll] = useState(true);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [resolvedItems, setResolvedItems] = useState({});
+  const [showMappingPanel, setShowMappingPanel] = useState(null);
+  const [diagramName, setDiagramName] = useState("Claims Process Diagram");
+  const [editingName, setEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState("");
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishName, setPublishName] = useState("");
+  const [zoom, setZoom] = useState(100);
+  const [rightTab, setRightTab] = useState("review"); // "review" | "details"
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [shapesOpen, setShapesOpen] = useState(true);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [splitPercent, setSplitPercent] = useState(50);
+  const splitContainerRef = useRef(null);
+  const isDraggingSplit = useRef(false);
+  const topRef = useRef(null);
+  const bottomRef = useRef(null);
+  const isSyncing = useRef(false);
+
+  const handleSyncScroll = (source) => {
+    if (!syncScroll || isSyncing.current) return;
+    isSyncing.current = true;
+    const src = source === "top" ? topRef.current : bottomRef.current;
+    const tgt = source === "top" ? bottomRef.current : topRef.current;
+    if (src && tgt) {
+      tgt.scrollLeft = src.scrollLeft;
+      tgt.scrollTop = src.scrollTop;
+    }
+    requestAnimationFrame(() => { isSyncing.current = false; });
+  };
+
+  const handleSplitMouseDown = (e) => {
+    e.preventDefault();
+    isDraggingSplit.current = true;
+    const onMove = (ev) => {
+      if (!isDraggingSplit.current || !splitContainerRef.current) return;
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      const pct = ((ev.clientY - rect.top) / rect.height) * 100;
+      setSplitPercent(Math.min(85, Math.max(15, pct)));
+    };
+    const onUp = () => {
+      isDraggingSplit.current = false;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+
+  const handleWheel = (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      setZoom((z) => Math.min(300, Math.max(25, z + (e.deltaY < 0 ? 10 : -10))));
+    }
+  };
+
+  // Simulate processing
+  useEffect(() => {
+    if (step === "processing") {
+      const interval = setInterval(() => {
+        setProgress((p) => {
+          if (p >= 100) { clearInterval(interval); setTimeout(() => setStep("review"), 300); return 100; }
+          return p + Math.random() * 8 + 2;
+        });
+      }, 240);
+      return () => clearInterval(interval);
+    }
+  }, [step]);
+
+  const mappedItems = [
+    { id: "m1", icon: "warning", name: "Check Fraud", subtitle: "Shape mapping", detail: "Mapped to BPMN Task", original: "Diamond shape", confidence: 45, suggestions: ["BPMN Task", "BPMN Gateway", "BPMN Sub-Process", "Select another shape"] },
+    { id: "m2", icon: "warning", name: "Store Results", subtitle: "Shape mapping", detail: "Mapped to BPMN Data Store", original: "Cylinder shape", confidence: 52, suggestions: ["BPMN Data Store", "BPMN Task", "BPMN Data Object", "Select another shape"] },
+    { id: "m3", icon: "warning", name: "Check Fraud → Approve Claim", subtitle: "Relationship", detail: "Link type unclear", original: "Dashed line", confidence: 38, suggestions: ["Sequence flow", "Message flow", "Association", "Select another relationship"] },
+  ];
+
+  const shapeDetails = {
+    a1: { name: "Receive Claim", shapeType: "BPMN Start Event", businessProcess: "Claims Processing", appType: "—", archType: "—", installType: "—", appCategory: "Insurance Operations", appFamily: "—", modelId: "EVT-START-001", status: "Active", lifecycleStage: "—", lifecycleStatus: "—" },
+    a2: { name: "Review Claim", shapeType: "BPMN Task", businessProcess: "Claims Processing", appType: "User Task", archType: "—", installType: "—", appCategory: "Claims Handling", appFamily: "—", modelId: "TSK-REVIEW-001", status: "Active", lifecycleStage: "—", lifecycleStatus: "—" },
+    a3: { name: "Valid?", shapeType: "BPMN Exclusive Gateway", businessProcess: "Claims Processing", appType: "Exclusive (XOR)", archType: "—", installType: "—", appCategory: "Decision Point", appFamily: "—", modelId: "GW-VALID-001", status: "Active", lifecycleStage: "—", lifecycleStatus: "—" },
+    a4: { name: "Approve Claim", shapeType: "BPMN Task", businessProcess: "Claims Processing", appType: "Service Task", archType: "—", installType: "—", appCategory: "Claims Handling", appFamily: "—", modelId: "TSK-APPROVE-001", status: "Active", lifecycleStage: "—", lifecycleStatus: "—" },
+    a5: { name: "Notify Customer", shapeType: "BPMN Task", businessProcess: "Claims Processing", appType: "Send Task", archType: "—", installType: "—", appCategory: "Customer Communication", appFamily: "—", modelId: "TSK-NOTIFY-001", status: "Active", lifecycleStage: "—", lifecycleStatus: "—" },
+    a6: { name: "End", shapeType: "BPMN End Event", businessProcess: "Claims Processing", appType: "—", archType: "—", installType: "—", appCategory: "—", appFamily: "—", modelId: "EVT-END-001", status: "Active", lifecycleStage: "—", lifecycleStatus: "—" },
+    a7: { name: "Issue Payment", shapeType: "BPMN Task", businessProcess: "Claims Processing", appType: "Service Task", archType: "—", installType: "—", appCategory: "Finance Operations", appFamily: "—", modelId: "TSK-PAYMENT-001", status: "Active", lifecycleStage: "—", lifecycleStatus: "—" },
+    m1: { name: "Check Fraud", shapeType: "BPMN Task", businessProcess: "Claims Processing", appType: "Service Task", archType: "—", installType: "—", appCategory: "Risk Management", appFamily: "—", modelId: "TSK-FRAUD-001", status: "Active", lifecycleStage: "—", lifecycleStatus: "—" },
+    m2: { name: "Store Results", shapeType: "BPMN Data Store", businessProcess: "Claims Processing", appType: "—", archType: "—", installType: "—", appCategory: "Data Storage", appFamily: "—", modelId: "DS-RESULTS-001", status: "Active", lifecycleStage: "—", lifecycleStatus: "—" },
+    m3: { name: "Check Fraud → Approve Claim", shapeType: "Sequence Flow", businessProcess: "—", appType: "—", archType: "—", installType: "—", appCategory: "—", appFamily: "—", modelId: "—", status: "—", lifecycleStage: "—", lifecycleStatus: "—" },
+  };
+
+  const handleMapping = (itemId, choice) => {
+    if (choice === "Select another shape" || choice === "Select another relationship") {
+      setShapesOpen(true);
+      return;
+    }
+    setResolvedItems((prev) => ({ ...prev, [itemId]: choice }));
+    setShowMappingPanel(null);
+  };
+
+  const unresolvedCount = mappedItems.filter((m) => !resolvedItems[m.id]).length;
+  const allResolved = unresolvedCount === 0;
+
+  const diagrams = [
+    { name: "Payment process", category: "Actor/Role matrix", type: "", version: "", approved: "", owner: "Jacob Jones", docs: "View" },
+    { name: "Synergized vortals", category: "(empty)", type: "", version: "", approved: "", owner: "Theresa Webb", docs: "View" },
+    { name: "Collaboration", category: "Application migrati...", type: "", version: "", approved: "", owner: "Marvin McKinney", docs: "--" },
+    { name: "Soap maryland", category: "Application migrati...", type: "", version: "", approved: "", owner: "Albert Flores", docs: "View" },
+    { name: "Protocol", category: "Application migrati...", type: "", version: "", approved: "", owner: "Brooklyn Simmons", docs: "View" },
+    { name: "Tugrik", category: "Application migrati...", type: "", version: "", approved: "", owner: "Jerome Bell", docs: "--" },
+    { name: "Intelligent pizza", category: "Actor/Role matrix", type: "", version: "", approved: "", owner: "Kristin Watson", docs: "--" },
+    { name: "Flexibility architect", category: "Application migrati...", type: "", version: "", approved: "", owner: "Cameron Williamson", docs: "View" },
+    { name: "European", category: "(empty)", type: "", version: "", approved: "", owner: "Wade Warren", docs: "View" },
+    { name: "Plastic salad", category: "(empty)", type: "Business application hierarc...", version: "4.0", approved: "1.0", owner: "Guy Hawkins", docs: "View" },
+    { name: "Rico generate", category: "Actor/Role matrix", type: "Value stream", version: "4.0", approved: "5.0", owner: "Annette Black", docs: "View" },
+  ];
+  const colHeaders = ["Name", "Architectural category", "Diagram type", "Default version", "Approved version", "Owner", "Documents"];
+
+  // --- UPLOAD SCREEN (Modal over Diagrams list) ---
+  if (step === "upload") {
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "Lato, sans-serif", background: "#F3F8F9" }}>
+        <TopNav />
+        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <Sidebar />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
+          {/* Tab bar — ServiceNow page navigation (primary only mode) */}
+          <div style={{
+            display: "flex", alignItems: "flex-end", height: 40,
+            background: "#A9CDD8", padding: "4px 4px 0", borderTopLeftRadius: 8,
+          }}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              minWidth: 176, height: 36, padding: "0 16px 0 12px",
+              borderRadius: "8px 8px 0 0", background: "#FFFFFF", cursor: "pointer",
+              boxShadow: "0 -4px 8px rgba(0,0,0,0.04)",
+            }}>
+              <span style={{ width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5E65", flexShrink: 0 }}><Icons.Doc /></span>
+              <span style={{ fontSize: 14, fontFamily: FONT_BODY, fontWeight: 400, color: "#172B31" }}>Enterprise Modeling an…</span>
+              <span style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5E65", cursor: "pointer", borderRadius: 4, flexShrink: 0, fontSize: 12 }}>×</span>
+            </div>
+            <div style={{ flex: 1 }} />
+            <span style={{
+              width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+              color: "#172B31", cursor: "pointer", borderRadius: 4, marginRight: 4, flexShrink: 0,
+            }}><Icons.Dots /></span>
+          </div>
+
+          {/* Page header */}
+          <div style={{ padding: "20px 24px 0", background: "white" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <h1 style={{ fontSize: 24, fontWeight: 700, color: "#172B31", margin: 0, fontFamily: FONT_HEADER }}>Diagrams</h1>
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ color: "#4A5E65", cursor: "pointer" }}>
+                  <path d="M9 1.5C4.86 1.5 1.5 4.86 1.5 9C1.5 13.14 4.86 16.5 9 16.5C13.14 16.5 16.5 13.14 16.5 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                  <path d="M12 2L15 5L12 8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <SNButton variant="secondary" size="md">Architecture Analyzer</SNButton>
+                <SNButton variant="primary" size="md">New <Icons.ChevronDown /></SNButton>
+              </div>
+            </div>
+            <div style={{ borderBottom: "2px solid #172B31", display: "inline-block", padding: "8px 0", fontSize: 13, fontWeight: 600, color: "#172B31" }}>
+              All diagrams
+            </div>
+          </div>
+
+          {/* List table */}
+          <div style={{ flex: 1, overflow: "auto", background: "white", padding: "0 24px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "10px 0", gap: 6 }}>
+              <button style={{ width: 30, height: 30, border: "1px solid #D7E1E5", borderRadius: 4, background: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5E65" }}><Icons.Settings /></button>
+              <button style={{ width: 30, height: 30, border: "1px solid #D7E1E5", borderRadius: 4, background: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5E65" }}>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4H12M4 7H10M6 10H8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+              </button>
+            </div>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontFamily: "Lato" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #D7E1E5" }}>
+                  <th style={{ width: 36, padding: "10px 8px" }}><input type="checkbox" style={{ accentColor: "#0080A3" }} /></th>
+                  {colHeaders.map((h) => (
+                    <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, color: "#172B31", fontSize: 12.5, whiteSpace: "nowrap" }}>
+                      {h} {h === "Name" && <span style={{ color: "#92ABB4", fontSize: 10 }}>↕</span>}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {diagrams.map((d, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid #E5EDF0" }}>
+                    <td style={{ padding: "9px 8px" }}><input type="checkbox" style={{ accentColor: "#0080A3" }} /></td>
+                    <td style={{ padding: "9px 12px", color: "#0080A3", fontWeight: 500, cursor: "pointer" }}>{d.name}</td>
+                    <td style={{ padding: "9px 12px", color: "#4A5E65" }}>{d.category}</td>
+                    <td style={{ padding: "9px 12px", color: "#4A5E65" }}>{d.type}</td>
+                    <td style={{ padding: "9px 12px", color: "#4A5E65" }}>{d.version}</td>
+                    <td style={{ padding: "9px 12px", color: "#4A5E65" }}>{d.approved}</td>
+                    <td style={{ padding: "9px 12px", color: "#0080A3", fontWeight: 500 }}>{d.owner}</td>
+                    <td style={{ padding: "9px 12px", color: d.docs === "View" ? "#0080A3" : "#92ABB4", fontWeight: 500, cursor: d.docs === "View" ? "pointer" : "default" }}>{d.docs}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {/* Pagination */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", fontSize: 12, color: "#4A5E65" }}>
+              <span>Showing 1-11 of 11</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                {["⏮", "◀", "1", "▶", "⏭"].map((p, i) => (
+                  <span key={i} style={{
+                    width: i === 2 ? 28 : 24, height: 28, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    borderRadius: 4, fontSize: 12, cursor: "pointer",
+                    background: i === 2 ? "#032D42" : "transparent", color: i === 2 ? "white" : "#92ABB4",
+                    border: i === 2 ? "none" : "none",
+                  }}>{i === 2 ? "1" : p}</span>
+                ))}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span>Records per page</span>
+                <span style={{ color: "#0080A3", fontWeight: 600, cursor: "pointer" }}>15 ▾</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ===== MODAL OVERLAY ===== */}
+          <div style={{
+            position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
+          }}>
+            <div style={{
+              background: "white", borderRadius: 8, width: 520, minHeight: 420, padding: 0,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+            }}>
+              {/* Modal header */}
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "20px 28px 16px",
+              }}>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: "#172B31", margin: 0, fontFamily: FONT_HEADER }}>
+                  Create diagram from image
+                </h2>
+                <button style={{ background: "none", border: "none", cursor: "pointer", color: "#4A5E65", padding: 4 }}>
+                  <Icons.Close />
+                </button>
+              </div>
+
+              {/* Drop zone */}
+              <div style={{ padding: "0 28px 24px" }}>
+                <div
+                  style={{
+                    border: "2px dashed #CAD7DB", borderRadius: 8, padding: "40px 24px",
+                    textAlign: "center", transition: "border-color 0.2s, background 0.2s",
+                    cursor: "pointer",
+                  }}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = "#0080A3"; e.currentTarget.style.background = "#F2F9FA"; }}
+                  onDragLeave={(e) => { e.currentTarget.style.borderColor = "#CAD7DB"; e.currentTarget.style.background = "transparent"; }}
+                  onDrop={(e) => { e.preventDefault(); setStep("processing"); }}
+                  onClick={() => setStep("processing")}
+                >
+                  {/* File icon with plus */}
+                  <div style={{ marginBottom: 14, display: "flex", justifyContent: "center" }}>
+                    <svg width="40" height="48" viewBox="0 0 40 48" fill="none">
+                      <rect x="4" y="6" width="28" height="36" rx="3" fill="#E5EDF0" stroke="#BDCBD0" strokeWidth="1.2" />
+                      <rect x="9" y="16" width="18" height="2" rx="1" fill="#BDCBD0" />
+                      <rect x="9" y="22" width="14" height="2" rx="1" fill="#BDCBD0" />
+                      <rect x="9" y="28" width="16" height="2" rx="1" fill="#BDCBD0" />
+                      <circle cx="28" cy="10" r="8" fill="white" stroke="#BDCBD0" strokeWidth="1.2" />
+                      <path d="M28 6V14M24 10H32" stroke="#4A5E65" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: "#172B31", margin: "0 0 4px", fontFamily: "Lato" }}>
+                    Drag and drop your file here
+                  </p>
+                  <p style={{ fontSize: 12, color: "#92ABB4", margin: 0 }}>
+                    Max file size 10MB. Supported file types are .png, .jpg, .jpeg
+                  </p>
+                </div>
+              </div>
+
+              {/* Choose file button centered */}
+              <div style={{ textAlign: "center", marginBottom: 24 }}>
+                <SNButton variant="secondary" size="md" onClick={() => setStep("processing")}>
+                  Choose file
+                </SNButton>
+              </div>
+
+              {/* Modal footer */}
+              <div style={{
+                display: "flex", justifyContent: "flex-end", gap: 10,
+                padding: "14px 28px", borderTop: "1px solid #E5EDF0",
+              }}>
+                <SNButton variant="tertiary" size="md">Cancel</SNButton>
+                <SNButton variant="primary" size="md" onClick={() => setStep("processing")}>Continue</SNButton>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- PROCESSING SCREEN (same background as upload, only modal content changes) ---
+  if (step === "processing") {
+    const clampedProgress = Math.min(progress, 100);
+    const stages = [
+      { label: "Detecting shapes & text", threshold: 30 },
+      { label: "Mapping to diagram entities", threshold: 65 },
+      { label: "Preparing review", threshold: 100 },
+    ];
+    const currentStage = stages.filter((s) => clampedProgress >= s.threshold).length;
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "Lato, sans-serif", background: "#F3F8F9" }}>
+        <TopNav />
+        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <Sidebar />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
+          {/* Same tab bar as upload */}
+          <div style={{
+            display: "flex", alignItems: "flex-end", height: 40,
+            background: "#A9CDD8", padding: "4px 4px 0", borderTopLeftRadius: 8,
+          }}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              minWidth: 176, height: 36, padding: "0 16px 0 12px",
+              borderRadius: "8px 8px 0 0", background: "#FFFFFF", cursor: "pointer",
+              boxShadow: "0 -4px 8px rgba(0,0,0,0.04)",
+            }}>
+              <span style={{ width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5E65", flexShrink: 0 }}><Icons.Doc /></span>
+              <span style={{ fontSize: 14, fontFamily: FONT_BODY, fontWeight: 400, color: "#172B31" }}>Enterprise Modeling an…</span>
+              <span style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5E65", cursor: "pointer", borderRadius: 4, flexShrink: 0, fontSize: 12 }}>×</span>
+            </div>
+            <div style={{ flex: 1 }} />
+            <span style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", color: "#172B31", cursor: "pointer", borderRadius: 4, marginRight: 4, flexShrink: 0 }}><Icons.Dots /></span>
+          </div>
+
+          {/* Same page header as upload */}
+          <div style={{ padding: "20px 24px 0", background: "white" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <h1 style={{ fontSize: 24, fontWeight: 700, color: "#172B31", margin: 0, fontFamily: FONT_HEADER }}>Diagrams</h1>
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ color: "#4A5E65", cursor: "pointer" }}>
+                  <path d="M9 1.5C4.86 1.5 1.5 4.86 1.5 9C1.5 13.14 4.86 16.5 9 16.5C13.14 16.5 16.5 13.14 16.5 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                  <path d="M12 2L15 5L12 8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <SNButton variant="secondary" size="md">Architecture Analyzer</SNButton>
+                <SNButton variant="primary" size="md">New <Icons.ChevronDown /></SNButton>
+              </div>
+            </div>
+            <div style={{ borderBottom: "2px solid #172B31", display: "inline-block", padding: "8px 0", fontSize: 13, fontWeight: 600, color: "#172B31" }}>
+              All diagrams
+            </div>
+          </div>
+
+          {/* Same list table as upload */}
+          <div style={{ flex: 1, overflow: "auto", background: "white", padding: "0 24px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "10px 0", gap: 6 }}>
+              <button style={{ width: 30, height: 30, border: "1px solid #D7E1E5", borderRadius: 4, background: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5E65" }}><Icons.Settings /></button>
+              <button style={{ width: 30, height: 30, border: "1px solid #D7E1E5", borderRadius: 4, background: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5E65" }}>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4H12M4 7H10M6 10H8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+              </button>
+            </div>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontFamily: "Lato" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #D7E1E5" }}>
+                  <th style={{ width: 36, padding: "10px 8px" }}><input type="checkbox" style={{ accentColor: "#0080A3" }} /></th>
+                  {colHeaders.map((h) => (
+                    <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, color: "#172B31", fontSize: 12.5, whiteSpace: "nowrap" }}>
+                      {h} {h === "Name" && <span style={{ color: "#92ABB4", fontSize: 10 }}>↕</span>}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {diagrams.map((d, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid #E5EDF0" }}>
+                    <td style={{ padding: "9px 8px" }}><input type="checkbox" style={{ accentColor: "#0080A3" }} /></td>
+                    <td style={{ padding: "9px 12px", color: "#0080A3", fontWeight: 500, cursor: "pointer" }}>{d.name}</td>
+                    <td style={{ padding: "9px 12px", color: "#4A5E65" }}>{d.category}</td>
+                    <td style={{ padding: "9px 12px", color: "#4A5E65" }}>{d.type}</td>
+                    <td style={{ padding: "9px 12px", color: "#4A5E65" }}>{d.version}</td>
+                    <td style={{ padding: "9px 12px", color: "#4A5E65" }}>{d.approved}</td>
+                    <td style={{ padding: "9px 12px", color: "#0080A3", fontWeight: 500 }}>{d.owner}</td>
+                    <td style={{ padding: "9px 12px", color: d.docs === "View" ? "#0080A3" : "#92ABB4", fontWeight: 500, cursor: d.docs === "View" ? "pointer" : "default" }}>{d.docs}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", fontSize: 12, color: "#4A5E65" }}>
+              <span>Showing 1-11 of 11</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                {["⏮", "◀", "1", "▶", "⏭"].map((p, i) => (
+                  <span key={i} style={{
+                    width: i === 2 ? 28 : 24, height: 28, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    borderRadius: 4, fontSize: 12, cursor: "pointer",
+                    background: i === 2 ? "#032D42" : "transparent", color: i === 2 ? "white" : "#92ABB4",
+                  }}>{i === 2 ? "1" : p}</span>
+                ))}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span>Records per page</span>
+                <span style={{ color: "#0080A3", fontWeight: 600, cursor: "pointer" }}>15 ▾</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ===== LOADING MODAL OVERLAY ===== */}
+          <div style={{
+            position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
+          }}>
+            <div style={{
+              background: "white", borderRadius: 8, width: 520, minHeight: 420, padding: 0,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+              display: "flex", flexDirection: "column",
+            }}>
+              {/* Modal header */}
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "20px 28px 16px",
+              }}>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: "#172B31", margin: 0, fontFamily: FONT_HEADER }}>
+                  Create diagram from image
+                </h2>
+              </div>
+
+              {/* Loading content — vertically centered */}
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 28px 32px" }}>
+                <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div style={{ marginBottom: 20 }}>
+                  <svg width="96" height="96" viewBox="0 0 96 96" style={{ display: "block" }}>
+                    <defs>
+                      <linearGradient id="loaderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#A8C8F0" />
+                        <stop offset="50%" stopColor="#7B9BE0" />
+                        <stop offset="100%" stopColor="#5B6ABF" />
+                      </linearGradient>
+                    </defs>
+                    {/* Rotating arc */}
+                    <g style={{ transformOrigin: "48px 48px", animation: "spinLoader 1.8s linear infinite" }}>
+                      <circle cx="48" cy="48" r="40" fill="none" stroke="url(#loaderGrad)" strokeWidth="5.5"
+                        strokeDasharray="188 63" strokeLinecap="round"
+                      />
+                    </g>
+                    {/* Large center sparkle */}
+                    <path d="M48 30 L51.5 43 L64 48 L51.5 53 L48 66 L44.5 53 L32 48 L44.5 43 Z" fill="url(#loaderGrad)"
+                      style={{ animation: "pulseSparkle 1.8s ease-in-out infinite" }}
+                    />
+                    {/* Small top-left sparkle */}
+                    <path d="M33 28 L34.2 32 L38 33.5 L34.2 35 L33 39 L31.8 35 L28 33.5 L31.8 32 Z" fill="#8BADD8" opacity="0.8"
+                      style={{ animation: "pulseSparkle 1.8s ease-in-out 0.4s infinite" }}
+                    />
+                    {/* Small top-right sparkle */}
+                    <path d="M65 24 L65.8 26.8 L68.5 28 L65.8 29.2 L65 32 L64.2 29.2 L61.5 28 L64.2 26.8 Z" fill="#5B6ABF" opacity="0.75"
+                      style={{ animation: "pulseSparkle 1.8s ease-in-out 0.8s infinite" }}
+                    />
+                  </svg>
+                  <style>{`
+                    @keyframes spinLoader { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                    @keyframes pulseSparkle { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.85); opacity: 0.6; } }
+                  `}</style>
+                </div>
+
+                <p style={{ fontSize: 13, color: "#4A5E65", margin: "0 0 20px", fontFamily: FONT_BODY, textAlign: "center" }}>
+                  AI is analyzing your image…
+                </p>
+
+                <div style={{ textAlign: "left" }}>
+                  {stages.map((s, i) => (
+                    <div key={i} style={{
+                      display: "flex", alignItems: "center", gap: 10, padding: "6px 0",
+                      color: i < currentStage ? "#2D7524" : i === currentStage ? "#172B31" : "#92ABB4",
+                      fontSize: 13, fontWeight: i === currentStage ? 600 : 400, fontFamily: FONT_BODY,
+                    }}>
+                      <div style={{
+                        width: 18, height: 18, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                        background: i < currentStage ? "#E0EADE" : i === currentStage ? "#F2F9FA" : "transparent",
+                        border: i < currentStage ? "1.5px solid #2D7524" : i === currentStage ? "1.5px solid #0080A3" : "1.5px solid #D7E1E5",
+                        flexShrink: 0,
+                      }}>
+                        {i < currentStage && <Icons.Check />}
+                        {i === currentStage && <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#0080A3" }} />}
+                      </div>
+                      {s.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- PUBLISHED SCREEN ---
+  if (step === "published") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "Lato, sans-serif", background: "#F3F8F9", overflow: "hidden" }}>
+        <TopNav />
+        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <Sidebar />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          {/* Tab bar with diagram name — ServiceNow page navigation */}
+          <div style={{
+            display: "flex", alignItems: "flex-end", height: 40,
+            background: "#A9CDD8", padding: "4px 4px 0", borderTopLeftRadius: 8,
+          }}>
+            {/* Module tab - unselected */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              width: 176, height: 36, padding: "0 0 0 12px",
+              borderRadius: 8, background: "transparent", cursor: "pointer",
+            }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.5)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            >
+              <span style={{ width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5E65", flexShrink: 0 }}><Icons.Doc /></span>
+              <span style={{ flex: 1, fontSize: 14, fontFamily: FONT_BODY, fontWeight: 400, color: "#172B31", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Enterprise Modeling an…</span>
+              <span style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", color: "#172B31", cursor: "pointer", borderRadius: 4, flexShrink: 0, marginRight: 4, fontSize: 12 }}>×</span>
+            </div>
+            {/* Divider */}
+            <div style={{ width: 0, height: 20, borderRight: "1px solid rgba(0,0,0,0.1)", margin: "0 1px", alignSelf: "center" }} />
+            {/* Session tab - selected */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              width: 200, height: 36, padding: "0 0 0 12px",
+              borderRadius: "8px 8px 0 0", background: "#FFFFFF", cursor: "pointer",
+              boxShadow: "0 -4px 8px rgba(0,0,0,0.04)",
+            }}>
+              <span style={{ width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5E65", flexShrink: 0 }}><Icons.Doc /></span>
+              <span style={{ flex: 1, fontSize: 14, fontFamily: FONT_BODY, fontWeight: 400, color: "#172B31", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Claims Processing BPMN</span>
+              <span onClick={() => { setStep("upload"); setProgress(0); setResolvedItems({}); }} style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5E65", cursor: "pointer", borderRadius: 4, flexShrink: 0, marginRight: 4, fontSize: 12 }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#E5EDF0"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >×</span>
+            </div>
+            {/* Spacer + overflow dots */}
+            <div style={{ flex: 1 }} />
+            <span style={{
+              width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+              color: "#172B31", cursor: "pointer", borderRadius: 4, marginRight: 4, flexShrink: 0,
+            }}><Icons.Dots /></span>
+          </div>
+
+          {/* 3-column layout: Shapes | Canvas | Right bar — all connect to tab bar */}
+          <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+            {/* Shapes Panel — open, full height */}
+            <ShapesPanel />
+
+            {/* Center: toolbar + toast + diagram */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              {/* Diagram info toolbar */}
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "6px 16px", background: "white", borderBottom: "1px solid #D7E1E5",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ color: "#4A5E65" }}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.2"/><line x1="2" y1="7" x2="14" y2="7" stroke="currentColor" strokeWidth="0.8"/><line x1="7" y1="2" x2="7" y2="14" stroke="currentColor" strokeWidth="0.8"/></svg>
+                  </span>
+                  <span style={{ fontSize: 16, fontWeight: 700, color: "#172B31", fontFamily: FONT_HEADER }}>Claims Processing BPMN</span>
+                  <span style={{
+                    fontSize: 11, color: "#0080A3", border: "1px solid #0080A3", borderRadius: 12,
+                    padding: "2px 10px", fontWeight: 500, fontFamily: "Lato", cursor: "pointer",
+                    display: "inline-flex", alignItems: "center", gap: 3,
+                  }}>
+                    1.0 - Published <Icons.ChevronDown />
+                  </span>
+                  <span style={{ color: "#92ABB4" }}><Icons.Info /></span>
+                  <span style={{ fontSize: 12, color: "#4A5E65", fontFamily: "Lato" }}>Published</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <SNButton variant="primary" size="sm">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 7V10H5L10 5L7 2L2 7Z" stroke="white" strokeWidth="1.2" strokeLinejoin="round"/><path d="M8 1L11 4" stroke="white" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                    Share
+                  </SNButton>
+                  <div style={{ position: "relative" }}>
+                    <button onClick={() => setShowMoreMenu(!showMoreMenu)} style={{
+                      width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+                      background: showMoreMenu ? "#E5EDF0" : "white", border: "1px solid #D7E1E5", borderRadius: 4, cursor: "pointer", color: "#4A5E65",
+                    }}><Icons.Dots /></button>
+                    {showMoreMenu && (
+                      <div style={{
+                        position: "absolute", top: 34, right: 0, width: 210,
+                        background: "white", borderRadius: 6, border: "1px solid #D7E1E5",
+                        boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 200,
+                        padding: "6px 0", fontFamily: FONT_BODY,
+                      }}>
+                        {[
+                          { icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="10" height="10" rx="2" stroke="#4A5E65" strokeWidth="1.2"/><path d="M6 14H14V6" stroke="#4A5E65" strokeWidth="1.2" strokeLinecap="round"/></svg>, label: "Duplicate" },
+                          { icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="2" width="10" height="12" rx="1.5" stroke="#4A5E65" strokeWidth="1.2"/><path d="M6 6H10M6 9H10" stroke="#4A5E65" strokeWidth="0.9" strokeLinecap="round"/></svg>, label: "Save as new version" },
+                          { icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3V10M5 7L8 10L11 7" stroke="#4A5E65" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" transform="rotate(180,8,6.5)"/><line x1="4" y1="13" x2="12" y2="13" stroke="#4A5E65" strokeWidth="1.2" strokeLinecap="round"/></svg>, label: "Submit for approval" },
+                          { icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 3H12V13H4Z" stroke="#4A5E65" strokeWidth="1.2" strokeLinejoin="round"/><path d="M6 6H10M6 8.5H10M6 11H8" stroke="#4A5E65" strokeWidth="0.9" strokeLinecap="round"/></svg>, label: "Generate document" },
+                          { icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3H11V13H3Z" stroke="#4A5E65" strokeWidth="1.2" strokeLinejoin="round"/><path d="M11 6H13V13H5V11" stroke="#4A5E65" strokeWidth="1.2" strokeLinejoin="round"/></svg>, label: "View documents", highlight: true },
+                        ].map((item, i) => (
+                          <button key={i} onClick={() => setShowMoreMenu(false)} style={{
+                            display: "flex", alignItems: "center", gap: 10, width: "100%",
+                            padding: "8px 16px", background: "transparent", border: "none",
+                            cursor: "pointer", fontSize: 13, color: "#172B31", fontFamily: FONT_BODY,
+                            fontWeight: 400, textAlign: "left",
+                            ...(item.highlight ? { border: "2px solid #2D7524", borderRadius: 4, margin: "2px 4px", width: "calc(100% - 8px)", padding: "6px 12px" } : {}),
+                          }}
+                            onMouseEnter={(e) => { if (!item.highlight) e.currentTarget.style.background = "#F3F8F9"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                          >
+                            {item.icon}
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Secondary toolbar: undo/redo */}
+              <div style={{
+                display: "flex", alignItems: "center", gap: 2, padding: "4px 16px",
+                background: "white", borderBottom: "1px solid #E5EDF0",
+              }}>
+                <button style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "1px solid #D7E1E5", borderRadius: 4, cursor: "pointer", color: "#92ABB4" }}>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><line x1="2" y1="6" x2="12" y2="6" stroke="currentColor" strokeWidth="0.7"/><line x1="6" y1="2" x2="6" y2="12" stroke="currentColor" strokeWidth="0.7"/></svg>
+                </button>
+                <button style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", borderRadius: 4, cursor: "pointer", color: "#92ABB4" }}>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 8C3 5.5 5 4 7 4H10M10 4L8 2M10 4L8 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+                <button style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", borderRadius: 4, cursor: "pointer", color: "#92ABB4" }}>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11 8C11 5.5 9 4 7 4H4M4 4L6 2M4 4L6 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+              </div>
+
+              {/* Green success toast */}
+              <div style={{ display: "flex", justifyContent: "center", padding: "10px 20px 0" }}>
+                <div style={{
+                  padding: "6px 16px", background: "#E8F5E9", border: "1px solid #A5D6A7",
+                  borderRadius: 6, display: "inline-flex", alignItems: "center", gap: 10,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+                      <circle cx="9" cy="9" r="7.5" stroke="#2D7524" strokeWidth="1.3"/>
+                      <path d="M9 6V10M9 12V12.5" stroke="#2D7524" strokeWidth="1.3" strokeLinecap="round"/>
+                    </svg>
+                    <span style={{ fontSize: 12.5, color: "#1B5E20", fontWeight: 500, fontFamily: "Lato" }}>
+                      Diagram is successfully published
+                    </span>
+                  </div>
+                  <button onClick={() => { setStep("upload"); setProgress(0); setResolvedItems({}); }} style={{
+                    background: "white", color: "#1B5E20", border: "1px solid #A5D6A7", borderRadius: 4,
+                    padding: "3px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "Lato",
+                  }}>
+                    ok
+                  </button>
+                </div>
+              </div>
+
+              {/* Diagram canvas */}
+              <div style={{ flex: 1, overflow: "auto", padding: 20 }}>
+                <svg width="100%" height="480" viewBox="0 0 760 480" style={{ display: "block" }}>
+                  {/* Pool outer border */}
+                  <rect x="0" y="6" width="760" height="468" rx="6" fill="none" stroke="#D7E1E5" strokeWidth="1.2"/>
+
+                  {/* Lane 1: Claims Handler */}
+                  <rect x="0" y="6" width="760" height="160" rx="6" fill="white" stroke="#D7E1E5" strokeWidth="1"/>
+                  <rect x="0" y="6" width="30" height="160" fill="#F3F8F9" stroke="#D7E1E5" strokeWidth="1"/>
+                  <text x="15" y="90" fill="#4A5E65" fontSize="9.5" fontFamily="Lato" fontWeight="600" textAnchor="middle" transform="rotate(-90,15,90)">Claims Handler</text>
+
+                  {/* Lane 2: Fraud Team */}
+                  <rect x="0" y="166" width="760" height="150" rx="6" fill="white" stroke="#D7E1E5" strokeWidth="1"/>
+                  <rect x="0" y="166" width="30" height="150" fill="#F3F8F9" stroke="#D7E1E5" strokeWidth="1"/>
+                  <text x="15" y="244" fill="#4A5E65" fontSize="9.5" fontFamily="Lato" fontWeight="600" textAnchor="middle" transform="rotate(-90,15,244)">Fraud Team</text>
+
+                  {/* Lane 3: Finance */}
+                  <rect x="0" y="316" width="760" height="158" rx="6" fill="white" stroke="#D7E1E5" strokeWidth="1"/>
+                  <rect x="0" y="316" width="30" height="158" fill="#F3F8F9" stroke="#D7E1E5" strokeWidth="1"/>
+                  <text x="15" y="398" fill="#4A5E65" fontSize="9.5" fontFamily="Lato" fontWeight="600" textAnchor="middle" transform="rotate(-90,15,398)">Finance</text>
+
+                  {/* ===== LANE 1 ===== */}
+
+                  <circle cx="70" cy="70" r="16" fill="white" stroke="#2D7524" strokeWidth="2"/>
+                  <circle cx="70" cy="70" r="6" fill="#2D7524"/>
+                  <text x="70" y="102" fill="#172B31" fontSize="10" fontFamily="Lato" fontWeight="600" textAnchor="middle">Receive Claim</text>
+
+                  <line x1="86" y1="70" x2="124" y2="70" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowPub)"/>
+
+                  <rect x="126" y="46" width="110" height="48" rx="8" fill="white" stroke="#BDCBD0" strokeWidth="1.2"/>
+                  <text x="181" y="66" fill="#172B31" fontSize="11" fontFamily="Lato" fontWeight="600" textAnchor="middle">Review Claim</text>
+                  <text x="181" y="82" fill="#4A5E65" fontSize="9" fontFamily="Lato" textAnchor="middle">User Task</text>
+
+                  <line x1="236" y1="70" x2="270" y2="70" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowPub)"/>
+
+                  <rect x="272" y="46" width="48" height="48" rx="2" fill="white" stroke="#4A5E65" strokeWidth="1.5" transform="rotate(45,296,70)"/>
+                  <text x="296" y="74" fill="#172B31" fontSize="14" fontFamily="Lato" fontWeight="700" textAnchor="middle">✕</text>
+                  <text x="296" y="32" fill="#172B31" fontSize="10" fontFamily="Lato" fontWeight="600" textAnchor="middle">Valid?</text>
+
+                  <line x1="330" y1="70" x2="380" y2="70" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowPub)"/>
+                  <text x="348" y="62" fill="#4A5E65" fontSize="9" fontFamily="Lato">Yes</text>
+
+                  <line x1="296" y1="104" x2="296" y2="218" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowPub)"/>
+                  <text x="306" y="148" fill="#4A5E65" fontSize="9" fontFamily="Lato">No</text>
+
+                  <rect x="382" y="46" width="120" height="48" rx="8" fill="white" stroke="#BDCBD0" strokeWidth="1.2"/>
+                  <text x="442" y="66" fill="#172B31" fontSize="11" fontFamily="Lato" fontWeight="600" textAnchor="middle">Approve Claim</text>
+                  <text x="442" y="82" fill="#4A5E65" fontSize="9" fontFamily="Lato" textAnchor="middle">Service Task</text>
+
+                  <line x1="502" y1="70" x2="540" y2="70" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowPub)"/>
+
+                  <rect x="542" y="46" width="120" height="48" rx="8" fill="white" stroke="#BDCBD0" strokeWidth="1.2"/>
+                  <text x="602" y="66" fill="#172B31" fontSize="11" fontFamily="Lato" fontWeight="600" textAnchor="middle">Notify Customer</text>
+                  <text x="602" y="82" fill="#4A5E65" fontSize="9" fontFamily="Lato" textAnchor="middle">Send Task</text>
+
+                  <line x1="602" y1="94" x2="602" y2="370" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowPub)"/>
+
+                  <circle cx="718" cy="70" r="16" fill="white" stroke="#C8372D" strokeWidth="3"/>
+                  <text x="718" y="102" fill="#172B31" fontSize="10" fontFamily="Lato" fontWeight="600" textAnchor="middle">End</text>
+
+                  {/* ===== LANE 2 ===== */}
+
+                  <rect x="236" y="220" width="120" height="48" rx="8" fill="white" stroke="#BDCBD0" strokeWidth="1.2"/>
+                  <text x="296" y="249" fill="#172B31" fontSize="11" fontFamily="Lato" fontWeight="600" textAnchor="middle">Check Fraud</text>
+
+                  <line x1="356" y1="244" x2="400" y2="244" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowPub)"/>
+
+                  <g transform="translate(402,220)">
+                    <line x1="0" y1="4" x2="70" y2="4" stroke="#4A5E65" strokeWidth="1.2"/>
+                    <line x1="0" y1="44" x2="70" y2="44" stroke="#4A5E65" strokeWidth="1.2"/>
+                    <line x1="0" y1="4" x2="0" y2="44" stroke="#4A5E65" strokeWidth="1.2"/>
+                    <line x1="70" y1="4" x2="70" y2="44" stroke="#4A5E65" strokeWidth="1.2"/>
+                    <text x="35" y="29" fill="#172B31" fontSize="10" fontFamily="Lato" fontWeight="600" textAnchor="middle">Store Results</text>
+                  </g>
+
+                  <path d="M356 234 L530 234 L530 94" fill="none" stroke="#4A5E65" strokeWidth="1" strokeDasharray="4 2" markerEnd="url(#arrowPub)"/>
+                  <text x="540" y="175" fill="#4A5E65" fontSize="8" fontFamily="Lato">Cleared</text>
+
+                  {/* ===== LANE 3 ===== */}
+
+                  <rect x="542" y="372" width="120" height="48" rx="8" fill="white" stroke="#BDCBD0" strokeWidth="1.2"/>
+                  <text x="602" y="392" fill="#172B31" fontSize="11" fontFamily="Lato" fontWeight="600" textAnchor="middle">Issue Payment</text>
+                  <text x="602" y="408" fill="#4A5E65" fontSize="9" fontFamily="Lato" textAnchor="middle">Service Task</text>
+
+                  <path d="M662 396 L748 396 L748 70 L734 70" fill="none" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowPub)"/>
+
+                  <defs>
+                    <marker id="arrowPub" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4A5E65"/>
+                    </marker>
+                  </defs>
+                </svg>
+              </div>
+            </div>
+
+            {/* Right icon bar only (no panel open) */}
+            <div style={{
+              width: 36, background: "#E5EDF0", borderLeft: "1px solid #D7E1E5",
+              display: "flex", flexDirection: "column", alignItems: "center",
+              paddingTop: 10, gap: 4, flexShrink: 0,
+            }}>
+              <button style={{
+                width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center",
+                background: "transparent", border: "none", borderRadius: 6, cursor: "pointer", color: "#4A5E65",
+              }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 1L9.5 6.5L15 8L9.5 9.5L8 15L6.5 9.5L1 8L6.5 6.5L8 1Z" fill="currentColor" opacity="0.8"/>
+                </svg>
+              </button>
+              <button style={{
+                width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center",
+                background: "transparent", border: "none", borderRadius: 6, cursor: "pointer", color: "#4A5E65",
+              }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
+                  <path d="M8 7V11M8 5.5V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- REVIEW SCREEN ---
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "Lato, sans-serif", background: "#F3F8F9", overflow: "hidden" }}>
+      <TopNav />
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <Sidebar />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <TabBar activeTab="import" onClose={() => { setStep("upload"); setProgress(0); setResolvedItems({}); }} />
+
+        {/* Toolbar */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "10px 20px", background: "white", borderBottom: "1px solid #D7E1E5",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => setShapesOpen(!shapesOpen)} style={{
+              width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+              background: shapesOpen ? "#F2F9FA" : "transparent", border: "1px solid #D7E1E5",
+              borderRadius: 4, cursor: "pointer", color: shapesOpen ? "#0080A3" : "#4A5E65",
+              transition: "all 0.15s",
+            }}
+              title={shapesOpen ? "Collapse shapes panel" : "Expand shapes panel"}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="2" width="5" height="12" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+                <rect x="8" y="2" width="7" height="12" rx="1" stroke="currentColor" strokeWidth="1.3" strokeDasharray={shapesOpen ? "none" : "2 1.5"}/>
+                {shapesOpen && <path d="M11 6L9.5 8L11 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>}
+                {!shapesOpen && <path d="M10 6L11.5 8L10 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>}
+              </svg>
+            </button>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: "#172B31", margin: 0, fontFamily: FONT_HEADER }}>Create diagram from image</h2>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <SNButton variant="primary" size="md" disabled={!allResolved} onClick={() => { setPublishName(diagramName); setShowPublishModal(true); }}>
+              Publish
+            </SNButton>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+          {/* Shapes Panel — conditional */}
+          {shapesOpen && <ShapesPanel />}
+
+          {/* Left: Diagram Panels — split into two resizable halves */}
+          <div ref={splitContainerRef} style={{
+            flex: 1, display: "flex", flexDirection: "column",
+            gap: 0, overflow: "hidden", padding: "0",
+          }}>
+            {/* Top: Converted Diagram */}
+            <div style={{ height: `${splitPercent}%`, display: "flex", flexDirection: "column", minHeight: 60 }}>
+              <div style={{ padding: "6px 12px", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{
+                  display: "inline-block", fontSize: 11, fontWeight: 600, color: "#3B6E12",
+                  background: "#E8F5C8", borderRadius: 3, padding: "3px 10px",
+                }}>
+                  To be converted
+                </span>
+                <span style={{ fontSize: 12, color: "#4A5E65", fontFamily: FONT_BODY }}>{diagramName}</span>
+              </div>
+              <div
+                ref={topRef}
+                onWheel={handleWheel}
+                className="sn-auto-scroll"
+                style={{
+                  flex: 1, overflow: "auto", background: "white",
+                  borderTop: "1px solid #D7E1E5", borderBottom: "1px solid #D7E1E5",
+                  position: "relative",
+                }}
+              >
+                <div style={{ padding: 16, minWidth: 780, transform: `scale(${zoom / 100})`, transformOrigin: "0 0", width: `${10000 / zoom}%` }}>
+                <svg width="100%" height="480" viewBox="0 0 760 480" style={{ display: "block" }}>
+                  {/* Pool outer border */}
+                  <rect x="0" y="6" width="760" height="468" rx="6" fill="none" stroke="#D7E1E5" strokeWidth="1.2"/>
+
+                  {/* Lane 1: Claims Handler */}
+                  <rect x="0" y="6" width="760" height="160" rx="6" fill="none" stroke="#D7E1E5" strokeWidth="1"/>
+                  <rect x="0" y="6" width="30" height="160" fill="#F3F8F9" stroke="#D7E1E5" strokeWidth="1"/>
+                  <text x="15" y="90" fill="#4A5E65" fontSize="9.5" fontFamily="Lato" fontWeight="600" textAnchor="middle" transform="rotate(-90,15,90)">Claims Handler</text>
+
+                  {/* Lane 2: Fraud Team */}
+                  <rect x="0" y="166" width="760" height="150" rx="6" fill="none" stroke="#D7E1E5" strokeWidth="1"/>
+                  <rect x="0" y="166" width="30" height="150" fill="#F3F8F9" stroke="#D7E1E5" strokeWidth="1"/>
+                  <text x="15" y="244" fill="#4A5E65" fontSize="9.5" fontFamily="Lato" fontWeight="600" textAnchor="middle" transform="rotate(-90,15,244)">Fraud Team</text>
+
+                  {/* Lane 3: Finance */}
+                  <rect x="0" y="316" width="760" height="158" rx="6" fill="none" stroke="#D7E1E5" strokeWidth="1"/>
+                  <rect x="0" y="316" width="30" height="158" fill="#F3F8F9" stroke="#D7E1E5" strokeWidth="1"/>
+                  <text x="15" y="398" fill="#4A5E65" fontSize="9.5" fontFamily="Lato" fontWeight="600" textAnchor="middle" transform="rotate(-90,15,398)">Finance</text>
+
+                  {/* ===== LANE 1 CONTENT ===== */}
+
+                  {/* Start Event */}
+                  <g onClick={() => { setSelectedItem("a1"); setRightTab("details"); setPanelOpen(true); }} style={{ cursor: "pointer" }}>
+                    <circle cx="70" cy="80" r="16" fill={selectedItem === "a1" ? "#F2F9FA" : "white"} stroke={selectedItem === "a1" ? "#0080A3" : "#2D7524"} strokeWidth="2"/>
+                    <circle cx="70" cy="80" r="6" fill="#2D7524"/>
+                    <text x="70" y="112" fill="#172B31" fontSize="10" fontFamily="Lato" fontWeight="600" textAnchor="middle">Receive Claim</text>
+                  </g>
+
+                  {/* Arrow: Start → Review */}
+                  <line x1="86" y1="80" x2="124" y2="80" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowBpmn)"/>
+
+                  {/* Task: Review Claim */}
+                  <g onClick={() => { setSelectedItem("a2"); setRightTab("details"); setPanelOpen(true); }} style={{ cursor: "pointer" }}>
+                    <rect x="126" y="56" width="110" height="48" rx="8" fill={selectedItem === "a2" ? "#F2F9FA" : "white"} stroke={selectedItem === "a2" ? "#0080A3" : "#BDCBD0"} strokeWidth={selectedItem === "a2" ? "2" : "1.2"}/>
+                    <text x="181" y="76" fill="#172B31" fontSize="11" fontFamily="Lato" fontWeight="600" textAnchor="middle">Review Claim</text>
+                    <text x="181" y="92" fill="#4A5E65" fontSize="9" fontFamily="Lato" textAnchor="middle">User Task</text>
+                  </g>
+
+                  {/* Arrow: Review → Gateway */}
+                  <line x1="236" y1="80" x2="270" y2="80" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowBpmn)"/>
+
+                  {/* Exclusive Gateway: Valid? */}
+                  <g onClick={() => { setSelectedItem("a3"); setRightTab("details"); setPanelOpen(true); }} style={{ cursor: "pointer" }}>
+                    <rect x="272" y="56" width="48" height="48" rx="2" fill={selectedItem === "a3" ? "#F2F9FA" : "white"} stroke={selectedItem === "a3" ? "#0080A3" : "#4A5E65"} strokeWidth="1.5" transform="rotate(45,296,80)"/>
+                    <text x="296" y="84" fill="#172B31" fontSize="14" fontFamily="Lato" fontWeight="700" textAnchor="middle">✕</text>
+                    <text x="296" y="42" fill="#172B31" fontSize="10" fontFamily="Lato" fontWeight="600" textAnchor="middle">Valid?</text>
+                  </g>
+
+                  {/* Arrow: Gateway → Approve (right, Yes) */}
+                  <line x1="330" y1="80" x2="380" y2="80" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowBpmn)"/>
+                  <text x="348" y="72" fill="#4A5E65" fontSize="9" fontFamily="Lato">Yes</text>
+
+                  {/* Arrow: Gateway → Check Fraud (down, crosses lane) */}
+                  <line x1="296" y1="114" x2="296" y2="218" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowBpmn)"/>
+                  <text x="306" y="168" fill="#4A5E65" fontSize="9" fontFamily="Lato">No</text>
+
+                  {/* Task: Approve Claim */}
+                  <g onClick={() => { setSelectedItem("a4"); setRightTab("details"); setPanelOpen(true); }} style={{ cursor: "pointer" }}>
+                    <rect x="382" y="56" width="120" height="48" rx="8" fill={selectedItem === "a4" ? "#F2F9FA" : "white"} stroke={selectedItem === "a4" ? "#0080A3" : "#BDCBD0"} strokeWidth={selectedItem === "a4" ? "2" : "1.2"}/>
+                    <text x="442" y="76" fill="#172B31" fontSize="11" fontFamily="Lato" fontWeight="600" textAnchor="middle">Approve Claim</text>
+                    <text x="442" y="92" fill="#4A5E65" fontSize="9" fontFamily="Lato" textAnchor="middle">Service Task</text>
+                  </g>
+
+                  {/* Arrow: Approve → Notify */}
+                  <line x1="502" y1="80" x2="540" y2="80" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowBpmn)"/>
+
+                  {/* Task: Notify Customer */}
+                  <g onClick={() => { setSelectedItem("a5"); setRightTab("details"); setPanelOpen(true); }} style={{ cursor: "pointer" }}>
+                    <rect x="542" y="56" width="120" height="48" rx="8" fill={selectedItem === "a5" ? "#F2F9FA" : "white"} stroke={selectedItem === "a5" ? "#0080A3" : "#BDCBD0"} strokeWidth={selectedItem === "a5" ? "2" : "1.2"}/>
+                    <text x="602" y="76" fill="#172B31" fontSize="11" fontFamily="Lato" fontWeight="600" textAnchor="middle">Notify Customer</text>
+                    <text x="602" y="92" fill="#4A5E65" fontSize="9" fontFamily="Lato" textAnchor="middle">Send Task</text>
+                  </g>
+
+                  {/* Arrow: Notify → End */}
+                  <line x1="662" y1="80" x2="700" y2="80" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowBpmn)"/>
+
+                  {/* End Event */}
+                  <g onClick={() => { setSelectedItem("a6"); setRightTab("details"); setPanelOpen(true); }} style={{ cursor: "pointer" }}>
+                    <circle cx="718" cy="80" r="16" fill={selectedItem === "a6" ? "#F2F9FA" : "white"} stroke={selectedItem === "a6" ? "#0080A3" : "#C8372D"} strokeWidth="3"/>
+                    <text x="718" y="112" fill="#172B31" fontSize="10" fontFamily="Lato" fontWeight="600" textAnchor="middle">End</text>
+                  </g>
+
+                  {/* ===== LANE 2 CONTENT ===== */}
+
+                  {/* Task: Check Fraud (low confidence) */}
+                  <g onClick={() => { setSelectedItem("m1"); setRightTab("details"); setPanelOpen(true); }} style={{ cursor: "pointer" }}>
+                    {selectedItem === "m1" && <rect x="230" y="214" width="132" height="60" rx="12" fill="none" stroke="#0080A3" strokeWidth="3" opacity="0.4"/>}
+                    <rect x="236" y="220" width="120" height="48" rx="8" fill={selectedItem === "m1" ? "#F2F9FA" : "white"} stroke={selectedItem === "m1" ? "#0080A3" : "#E27918"} strokeWidth="2" strokeDasharray={selectedItem === "m1" ? "none" : "5 3"}/>
+                    <text x="296" y="249" fill="#172B31" fontSize="11" fontFamily="Lato" fontWeight="600" textAnchor="middle">Check Fraud</text>
+                    <rect x="260" y="272" width="72" height="16" rx="8" fill="#FFF3E0"/>
+                    <text x="296" y="284" fill="#E27918" fontSize="9" fontFamily="Lato" fontWeight="600" textAnchor="middle">45% match</text>
+                  </g>
+
+                  {/* Arrow: Check Fraud → Store Results */}
+                  <line x1="356" y1="244" x2="400" y2="244" stroke="#E27918" strokeWidth="1.2" strokeDasharray="4 2"/>
+
+                  {/* Data Store: Store Results (low confidence) */}
+                  <g onClick={() => { setSelectedItem("m2"); setRightTab("details"); setPanelOpen(true); }} style={{ cursor: "pointer" }}>
+                    {selectedItem === "m2" && <rect x="396" y="218" width="82" height="56" rx="6" fill="none" stroke="#0080A3" strokeWidth="3" opacity="0.4"/>}
+                    <g transform="translate(402,220)">
+                      <line x1="0" y1="4" x2="70" y2="4" stroke={selectedItem === "m2" ? "#0080A3" : "#E27918"} strokeWidth="2" strokeDasharray={selectedItem === "m2" ? "none" : "5 3"}/>
+                      <line x1="0" y1="44" x2="70" y2="44" stroke={selectedItem === "m2" ? "#0080A3" : "#E27918"} strokeWidth="2" strokeDasharray={selectedItem === "m2" ? "none" : "5 3"}/>
+                      <line x1="0" y1="4" x2="0" y2="44" stroke={selectedItem === "m2" ? "#0080A3" : "#E27918"} strokeWidth="2" strokeDasharray={selectedItem === "m2" ? "none" : "5 3"}/>
+                      <line x1="70" y1="4" x2="70" y2="44" stroke={selectedItem === "m2" ? "#0080A3" : "#E27918"} strokeWidth="2" strokeDasharray={selectedItem === "m2" ? "none" : "5 3"}/>
+                      <text x="35" y="29" fill="#172B31" fontSize="10" fontFamily="Lato" fontWeight="600" textAnchor="middle">Store Results</text>
+                    </g>
+                    <rect x="406" y="268" width="62" height="14" rx="7" fill="#FFF3E0"/>
+                    <text x="437" y="278" fill="#E27918" fontSize="8" fontFamily="Lato" fontWeight="600" textAnchor="middle">52% match</text>
+                  </g>
+
+                  {/* Dashed arrow: Check Fraud back up to Approve (cross-lane return) — m3 relationship */}
+                  <path d="M356 234 L530 234 L530 94" fill="none" stroke={selectedItem === "m3" ? "#0080A3" : "#4A5E65"} strokeWidth={selectedItem === "m3" ? "2.5" : "1"} strokeDasharray="4 2" markerEnd="url(#arrowBpmn)"/>
+                  {selectedItem === "m3" && <path d="M356 234 L530 234 L530 94" fill="none" stroke="#0080A3" strokeWidth="6" opacity="0.15" strokeLinecap="round"/>}
+                  <text x="540" y="200" fill={selectedItem === "m3" ? "#0080A3" : "#4A5E65"} fontSize="8" fontFamily="Lato">Cleared</text>
+
+                  {/* ===== LANE 3 CONTENT ===== */}
+
+                  {/* Task: Issue Payment */}
+                  <g onClick={() => { setSelectedItem("a7"); setRightTab("details"); setPanelOpen(true); }} style={{ cursor: "pointer" }}>
+                    <rect x="542" y="372" width="120" height="48" rx="8" fill={selectedItem === "a7" ? "#F2F9FA" : "white"} stroke={selectedItem === "a7" ? "#0080A3" : "#BDCBD0"} strokeWidth={selectedItem === "a7" ? "2" : "1.2"}/>
+                    <text x="602" y="392" fill="#172B31" fontSize="11" fontFamily="Lato" fontWeight="600" textAnchor="middle">Issue Payment</text>
+                    <text x="602" y="408" fill="#4A5E65" fontSize="9" fontFamily="Lato" textAnchor="middle">Service Task</text>
+                  </g>
+
+                  {/* Arrow: Issue Payment → back up to End */}
+                  <path d="M662 396 L748 396 L748 80 L734 80" fill="none" stroke="#4A5E65" strokeWidth="1.2" markerEnd="url(#arrowBpmn)"/>
+
+                  {/* Arrow marker */}
+                  <defs>
+                    <marker id="arrowBpmn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4A5E65"/>
+                    </marker>
+                  </defs>
+                </svg>
+                </div>
+                {/* Zoom controls — sticky bottom-right of top pane */}
+                <div style={{
+                  position: "sticky", bottom: 8, float: "right", marginRight: 8, display: "inline-flex", alignItems: "center", gap: 2,
+                  background: "white", border: "1px solid #D7E1E5", borderRadius: 4, padding: "1px 4px", zIndex: 2,
+                }}>
+                  <button onClick={() => setZoom(100)} style={zoomBtnStyle} title="Fit to view"><Icons.FitView /></button>
+                  <button onClick={() => setZoom(Math.max(25, zoom - 10))} style={zoomBtnStyle} title="Zoom out"><Icons.ZoomOut /></button>
+                  <span style={{ fontSize: 11, color: "#4A5E65", padding: "0 4px", minWidth: 36, textAlign: "center", fontFamily: FONT_BODY }}>{zoom}%</span>
+                  <button onClick={() => setZoom(Math.min(300, zoom + 10))} style={zoomBtnStyle} title="Zoom in"><Icons.Zoom /></button>
+                </div>
+              </div>
+            </div>
+
+            {/* Pane Divider — thin line, handle on hover only */}
+            <div
+              onMouseDown={handleSplitMouseDown}
+              className="sn-pane-divider"
+              style={{
+                height: 5, flexShrink: 0, cursor: "row-resize",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                position: "relative",
+              }}
+            >
+              <div style={{ position: "absolute", left: 0, right: 0, top: 2, height: 1, background: "#D7E1E5" }} />
+              <div className="sn-divider-handle" style={{
+                width: 32, height: 16, borderRadius: 4, background: "#E5EDF0", border: "1px solid #D7E1E5",
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
+                position: "relative", zIndex: 1, opacity: 0, transition: "opacity 0.2s",
+              }}>
+                <div style={{ width: 14, height: 1.5, borderRadius: 1, background: "#92ABB4" }} />
+                <div style={{ width: 14, height: 1.5, borderRadius: 1, background: "#92ABB4" }} />
+              </div>
+            </div>
+
+            {/* Bottom: Uploaded Image */}
+            <div style={{ height: `${100 - splitPercent}%`, display: "flex", flexDirection: "column", minHeight: 60 }}>
+              <div style={{ padding: "6px 12px", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{
+                  display: "inline-block", fontSize: 11, fontWeight: 600, color: "#00536A",
+                  background: "#D9ECF1", borderRadius: 3, padding: "3px 10px",
+                }}>
+                  Uploaded image
+                </span>
+                <span style={{ fontSize: 12, color: "#4A5E65", fontFamily: FONT_BODY }}>claims_process_diagram.png</span>
+              </div>
+              <div
+                ref={bottomRef}
+                onWheel={handleWheel}
+                className="sn-auto-scroll"
+                style={{
+                  flex: 1, overflow: "auto", background: "white",
+                  borderTop: "1px solid #D7E1E5",
+                }}
+              >
+                <div style={{ padding: 16, minWidth: 780, transform: `scale(${zoom / 100})`, transformOrigin: "0 0", width: `${10000 / zoom}%` }}>
+                <svg width="100%" height="480" viewBox="0 0 760 480" style={{ display: "block", opacity: 0.9 }}>
+
+                  {/* Pool outer border — sketchy */}
+                  <rect x="5" y="6" width="750" height="468" rx="8" fill="#FAFCFD" stroke="#B0BEC5" strokeWidth="1.5"/>
+
+                  {/* Lane 1: Claims Handler */}
+                  <rect x="5" y="6" width="750" height="160" rx="8" fill="none" stroke="#B0BEC5" strokeWidth="1"/>
+                  <rect x="5" y="6" width="28" height="160" fill="#E8F0F2" stroke="#B0BEC5" strokeWidth="1"/>
+                  <text x="19" y="90" fill="#607D8B" fontSize="9" fontFamily="Lato" fontWeight="600" textAnchor="middle" transform="rotate(-90,19,90)">Claims Handler</text>
+
+                  {/* Lane 2: Fraud Team */}
+                  <rect x="5" y="166" width="750" height="150" rx="8" fill="none" stroke="#B0BEC5" strokeWidth="1"/>
+                  <rect x="5" y="166" width="28" height="150" fill="#E8F0F2" stroke="#B0BEC5" strokeWidth="1"/>
+                  <text x="19" y="244" fill="#607D8B" fontSize="9" fontFamily="Lato" fontWeight="600" textAnchor="middle" transform="rotate(-90,19,244)">Fraud Team</text>
+
+                  {/* Lane 3: Finance */}
+                  <rect x="5" y="316" width="750" height="158" rx="8" fill="none" stroke="#B0BEC5" strokeWidth="1"/>
+                  <rect x="5" y="316" width="28" height="158" fill="#E8F0F2" stroke="#B0BEC5" strokeWidth="1"/>
+                  <text x="19" y="398" fill="#607D8B" fontSize="9" fontFamily="Lato" fontWeight="600" textAnchor="middle" transform="rotate(-90,19,398)">Finance</text>
+
+                  {/* ===== LANE 1 ===== */}
+
+                  {/* Start Event */}
+                  <circle cx="72" cy="80" r="15" fill="#C8E6C9" stroke="#4CAF50" strokeWidth="2"/>
+                  <circle cx="72" cy="80" r="5" fill="#4CAF50"/>
+                  <text x="72" y="112" fill="#555" fontSize="9" fontFamily="Lato" textAnchor="middle">Receive Claim</text>
+
+                  <line x1="87" y1="80" x2="130" y2="80" stroke="#777" strokeWidth="1.5" markerEnd="url(#arrowSketch)"/>
+
+                  {/* Task: Review Claim */}
+                  <rect x="132" y="56" width="108" height="48" rx="10" fill="#BBDEFB" stroke="#42A5F5" strokeWidth="1.8"/>
+                  <text x="186" y="84" fill="#333" fontSize="11" fontFamily="Lato" fontWeight="500" textAnchor="middle">Review Claim</text>
+
+                  <line x1="240" y1="80" x2="278" y2="80" stroke="#777" strokeWidth="1.5" markerEnd="url(#arrowSketch)"/>
+
+                  {/* Gateway — diamond */}
+                  <polygon points="302,50 332,80 302,110 272,80" fill="#FFF9C4" stroke="#FBC02D" strokeWidth="2"/>
+                  <text x="302" y="84" fill="#333" fontSize="13" fontFamily="Lato" fontWeight="700" textAnchor="middle">✕</text>
+                  <text x="302" y="38" fill="#555" fontSize="9" fontFamily="Lato" textAnchor="middle">Valid?</text>
+
+                  {/* Arrow right: Yes → Approve */}
+                  <line x1="332" y1="80" x2="386" y2="80" stroke="#777" strokeWidth="1.5" markerEnd="url(#arrowSketch)"/>
+                  <text x="352" y="72" fill="#999" fontSize="9" fontFamily="Lato">Yes</text>
+
+                  {/* Arrow down: No → Check Fraud (crosses lane) */}
+                  <line x1="302" y1="110" x2="302" y2="218" stroke="#777" strokeWidth="1.5" markerEnd="url(#arrowSketch)"/>
+                  <text x="312" y="148" fill="#999" fontSize="9" fontFamily="Lato">No</text>
+
+                  {/* Task: Approve Claim */}
+                  <rect x="388" y="56" width="112" height="48" rx="10" fill="#BBDEFB" stroke="#42A5F5" strokeWidth="1.8"/>
+                  <text x="444" y="84" fill="#333" fontSize="11" fontFamily="Lato" fontWeight="500" textAnchor="middle">Approve Claim</text>
+
+                  <line x1="500" y1="80" x2="544" y2="80" stroke="#777" strokeWidth="1.5" markerEnd="url(#arrowSketch)"/>
+
+                  {/* Task: Notify Customer */}
+                  <rect x="546" y="56" width="112" height="48" rx="10" fill="#BBDEFB" stroke="#42A5F5" strokeWidth="1.8"/>
+                  <text x="602" y="78" fill="#333" fontSize="10" fontFamily="Lato" fontWeight="500" textAnchor="middle">Notify</text>
+                  <text x="602" y="92" fill="#333" fontSize="10" fontFamily="Lato" fontWeight="500" textAnchor="middle">Customer</text>
+
+                  {/* Arrow: Notify → down to Finance */}
+                  <line x1="602" y1="94" x2="602" y2="370" stroke="#777" strokeWidth="1.5" markerEnd="url(#arrowSketch)"/>
+
+                  {/* End Event */}
+                  <circle cx="716" cy="70" r="15" fill="#FFCDD2" stroke="#E53935" strokeWidth="3"/>
+                  <text x="716" y="102" fill="#555" fontSize="9" fontFamily="Lato" textAnchor="middle">End</text>
+
+                  {/* ===== LANE 2 ===== */}
+
+                  {/* Ambiguous shape: Check Fraud — hexagon */}
+                  {selectedItem === "m1" && <polygon points="302,216 344,216 361,240 344,264 302,264 285,240" fill="none" stroke="#0080A3" strokeWidth="3" opacity="0.4"/>}
+                  <polygon points="302,220 340,220 355,240 340,260 302,260 287,240" fill={selectedItem === "m1" ? "#E0F2F7" : "#FFF3E0"} stroke={selectedItem === "m1" ? "#0080A3" : "#FF9800"} strokeWidth="2"/>
+                  <text x="321" y="244" fill="#333" fontSize="9" fontFamily="Lato" fontWeight="500" textAnchor="middle">Check Fraud</text>
+
+                  {/* Dashed line to cylinder */}
+                  <line x1="355" y1="240" x2="410" y2="240" stroke="#999" strokeWidth="1.2" strokeDasharray="4 3"/>
+
+                  {/* Ambiguous shape: Store Results — cylinder */}
+                  {selectedItem === "m2" && <rect x="408" y="240" width="84" height="60" rx="6" fill="none" stroke="#0080A3" strokeWidth="3" opacity="0.4"/>}
+                  <ellipse cx="450" cy="222" rx="38" ry="9" fill={selectedItem === "m2" ? "#E0F2F7" : "#E3F2FD"} stroke={selectedItem === "m2" ? "#0080A3" : "#64B5F6"} strokeWidth="1.5"/>
+                  <rect x="412" y="222" width="76" height="32" fill={selectedItem === "m2" ? "#E0F2F7" : "#E3F2FD"}/>
+                  <line x1="412" y1="222" x2="412" y2="254" stroke={selectedItem === "m2" ? "#0080A3" : "#64B5F6"} strokeWidth="1.5"/>
+                  <line x1="488" y1="222" x2="488" y2="254" stroke={selectedItem === "m2" ? "#0080A3" : "#64B5F6"} strokeWidth="1.5"/>
+                  <ellipse cx="450" cy="254" rx="38" ry="9" fill={selectedItem === "m2" ? "#E0F2F7" : "#E3F2FD"} stroke={selectedItem === "m2" ? "#0080A3" : "#64B5F6"} strokeWidth="1.5"/>
+                  <text x="450" y="242" fill="#333" fontSize="9" fontFamily="Lato" fontWeight="500" textAnchor="middle">Store Results</text>
+
+                  {/* Dashed return arrow: Check Fraud → back up to Approve */}
+                  {selectedItem === "m3" && <path d="M355 228 L530 228 L530 94" fill="none" stroke="#0080A3" strokeWidth="6" opacity="0.15" strokeLinecap="round"/>}
+                  <path d="M355 228 L530 228 L530 94" fill="none" stroke={selectedItem === "m3" ? "#0080A3" : "#999"} strokeWidth={selectedItem === "m3" ? "2.5" : "1.2"} strokeDasharray="4 3" markerEnd="url(#arrowSketch)"/>
+                  <text x="538" y="195" fill={selectedItem === "m3" ? "#0080A3" : "#999"} fontSize="8" fontFamily="Lato">Cleared</text>
+
+                  {/* ===== LANE 3: Finance ===== */}
+
+                  {/* Task: Issue Payment */}
+                  <rect x="546" y="372" width="112" height="48" rx="10" fill="#BBDEFB" stroke="#42A5F5" strokeWidth="1.8"/>
+                  <text x="602" y="400" fill="#333" fontSize="11" fontFamily="Lato" fontWeight="500" textAnchor="middle">Issue Payment</text>
+
+                  {/* Arrow: Issue Payment → back up to End */}
+                  <path d="M658 396 L746 396 L746 70 L731 70" fill="none" stroke="#777" strokeWidth="1.5" markerEnd="url(#arrowSketch)"/>
+
+                  <defs>
+                    <marker id="arrowSketch" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                      <path d="M 0 0 L 10 5 L 0 10 z" fill="#777"/>
+                    </marker>
+                  </defs>
+                </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Panel + Vertical icon bar on rightmost edge */}
+          <div style={{ display: "flex", overflow: "hidden" }}>
+            {/* Panel content — only visible when open */}
+            {panelOpen && (
+            <div style={{
+              width: 340, background: "white", borderLeft: "1px solid #D7E1E5",
+              display: "flex", flexDirection: "column", overflow: "hidden",
+            }}>
+              {/* Panel Header */}
+              <div style={{
+                padding: "14px 20px", borderBottom: "1px solid #D7E1E5",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+              }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: "#172B31", margin: 0, fontFamily: FONT_HEADER }}>
+                  {rightTab === "review" ? "Waiting for your review" : (selectedItem && shapeDetails[selectedItem] ? shapeDetails[selectedItem].name : "Shape details")}
+                </h3>
+                <button onClick={() => setPanelOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#4A5E65", padding: 2 }}>
+                  <Icons.Close />
+                </button>
+              </div>
+
+              {/* TAB: Waiting for your review */}
+              {rightTab === "review" && (
+                <>
+                  {/* Unresolved Warning */}
+                  {unresolvedCount > 0 && (
+                    <div style={{
+                      margin: "12px 16px 0", padding: "10px 14px", background: "#FFF8F0",
+                      border: "1px solid #FDDCB5", borderRadius: 6, display: "flex", gap: 8, alignItems: "flex-start",
+                    }}>
+                      <span style={{ color: "#E27918", flexShrink: 0, marginTop: 1 }}><Icons.Info /></span>
+                      <p style={{ fontSize: 12, color: "#7A4510", margin: 0, lineHeight: 1.45 }}>
+                        <strong>{unresolvedCount} mapping{unresolvedCount > 1 ? "s" : ""} need{unresolvedCount === 1 ? "s" : ""} review</strong> before publishing. These shapes couldn't be mapped with high confidence.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Scrollable Review Items */}
+                  <div style={{ flex: 1, overflow: "auto", padding: "8px 0" }}>
+                    {mappedItems.map((item) => (
+                      <div key={item.id}>
+                        <ReviewItem
+                          item={item} iconType="warning"
+                          selected={selectedItem === item.id || showMappingPanel === item.id}
+                          onClick={() => { setSelectedItem(item.id); setShowMappingPanel(showMappingPanel === item.id ? null : item.id); }}
+                          resolved={resolvedItems[item.id]}
+                          onApprove={() => {
+                            if (resolvedItems[item.id]) {
+                              setResolvedItems((prev) => { const n = { ...prev }; delete n[item.id]; return n; });
+                            } else {
+                              handleMapping(item.id, item.suggestions[0]);
+                            }
+                          }}
+                        />
+                        {showMappingPanel === item.id && !resolvedItems[item.id] && (
+                          <div style={{
+                            margin: "0 16px 8px 42px", padding: 12,
+                            background: "#FFFBF5", border: "1px solid #FDDCB5", borderRadius: 6,
+                          }}>
+                            <p style={{ fontSize: 11, color: "#7A4510", margin: "0 0 8px", fontWeight: 600 }}>
+                              Select the correct mapping:
+                            </p>
+                            {item.suggestions.map((s, i) => {
+                              const isSelectShape = s.startsWith("Select another");
+                              // Shape thumbnails
+                              const shapeThumb = {
+                                "BPMN Task": <svg width="22" height="16" viewBox="0 0 22 16" style={{ flexShrink: 0 }}><rect x="1" y="1" width="20" height="14" rx="3" fill="none" stroke="#4A5E65" strokeWidth="1.2"/></svg>,
+                                "BPMN Gateway": <svg width="18" height="18" viewBox="0 0 18 18" style={{ flexShrink: 0 }}><rect x="2" y="2" width="10" height="10" rx="1" fill="none" stroke="#4A5E65" strokeWidth="1.2" transform="rotate(45,9,9)"/></svg>,
+                                "BPMN Sub-Process": <svg width="22" height="16" viewBox="0 0 22 16" style={{ flexShrink: 0 }}><rect x="1" y="1" width="20" height="14" rx="3" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><rect x="8" y="11" width="6" height="4" rx="1" fill="none" stroke="#4A5E65" strokeWidth="0.8"/><line x1="11" y1="11" x2="11" y2="13" stroke="#4A5E65" strokeWidth="0.6"/><line x1="9" y1="13" x2="13" y2="13" stroke="#4A5E65" strokeWidth="0.6"/></svg>,
+                                "BPMN Data Store": <svg width="22" height="18" viewBox="0 0 22 18" style={{ flexShrink: 0 }}><line x1="3" y1="3" x2="19" y2="3" stroke="#4A5E65" strokeWidth="1.2"/><line x1="3" y1="15" x2="19" y2="15" stroke="#4A5E65" strokeWidth="1.2"/><line x1="3" y1="3" x2="3" y2="15" stroke="#4A5E65" strokeWidth="1.2"/><line x1="19" y1="3" x2="19" y2="15" stroke="#4A5E65" strokeWidth="1.2"/><line x1="3" y1="7" x2="19" y2="7" stroke="#4A5E65" strokeWidth="0.7"/></svg>,
+                                "BPMN Data Object": <svg width="18" height="20" viewBox="0 0 18 20" style={{ flexShrink: 0 }}><path d="M2 2H12L16 6V18H2Z" fill="none" stroke="#4A5E65" strokeWidth="1.2" strokeLinejoin="round"/><path d="M12 2V6H16" fill="none" stroke="#4A5E65" strokeWidth="1"/></svg>,
+                                "Sequence flow": <svg width="28" height="14" viewBox="0 0 28 14" style={{ flexShrink: 0 }}><line x1="2" y1="7" x2="22" y2="7" stroke="#4A5E65" strokeWidth="1.3"/><path d="M20 3L26 7L20 11" fill="none" stroke="#4A5E65" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+                                "Message flow": <svg width="28" height="14" viewBox="0 0 28 14" style={{ flexShrink: 0 }}><line x1="2" y1="7" x2="22" y2="7" stroke="#4A5E65" strokeWidth="1.2" strokeDasharray="4 2"/><path d="M20 3L26 7L20 11" fill="none" stroke="#4A5E65" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="2" cy="7" r="2" fill="white" stroke="#4A5E65" strokeWidth="1"/></svg>,
+                                "Association": <svg width="28" height="14" viewBox="0 0 28 14" style={{ flexShrink: 0 }}><line x1="2" y1="7" x2="26" y2="7" stroke="#4A5E65" strokeWidth="1" strokeDasharray="3 2"/></svg>,
+                              };
+                              return (
+                              <button key={i}
+                                onClick={() => handleMapping(item.id, s)}
+                                style={{
+                                  display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left",
+                                  padding: "8px 12px",
+                                  fontSize: 12, color: isSelectShape ? "#0080A3" : "#172B31",
+                                  background: i === 0 ? "#F2F9FA" : "white",
+                                  border: `1px solid ${i === 0 ? "#0080A3" : isSelectShape ? "#0080A3" : "#D7E1E5"}`,
+                                  borderRadius: 6, marginBottom: 5, cursor: "pointer",
+                                  fontFamily: "Lato", fontWeight: i === 0 ? 600 : isSelectShape ? 600 : 400,
+                                  borderStyle: isSelectShape ? "dashed" : "solid",
+                                }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = "#F2F9FA"; e.currentTarget.style.borderColor = "#0080A3"; }}
+                                onMouseLeave={(e) => { if (i !== 0 && !isSelectShape) { e.currentTarget.style.background = "white"; e.currentTarget.style.borderColor = "#D7E1E5"; } if (isSelectShape) { e.currentTarget.style.background = "white"; } }}
+                              >
+                                {isSelectShape ? (
+                                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+                                    <rect x="1" y="1.5" width="4.5" height="11" rx="1" stroke="#0080A3" strokeWidth="1.1"/>
+                                    <rect x="7" y="1.5" width="6" height="11" rx="1" stroke="#0080A3" strokeWidth="1.1"/>
+                                    <path d="M9.5 5L11 7L9.5 9" stroke="#0080A3" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                ) : shapeThumb[s] || null}
+                                {s} {i === 0 && <span style={{ fontSize: 10, color: "#0080A3", marginLeft: 2 }}>(suggested)</span>}
+                              </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* TAB: Shape details */}
+              {rightTab === "details" && (
+                <div style={{ flex: 1, overflow: "auto" }}>
+                  {selectedItem && shapeDetails[selectedItem] ? (
+                    <ShapeDetailsForm detail={shapeDetails[selectedItem]} />
+                  ) : (
+                    <div style={{ padding: 32, textAlign: "center" }}>
+                      <div style={{ color: "#92ABB4", marginBottom: 12 }}>
+                        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                          <rect x="6" y="6" width="28" height="28" rx="4" stroke="#BDCBD0" strokeWidth="1.5"/>
+                          <line x1="12" y1="14" x2="28" y2="14" stroke="#BDCBD0" strokeWidth="1.2"/>
+                          <line x1="12" y1="20" x2="24" y2="20" stroke="#BDCBD0" strokeWidth="1.2"/>
+                          <line x1="12" y1="26" x2="20" y2="26" stroke="#BDCBD0" strokeWidth="1.2"/>
+                        </svg>
+                      </div>
+                      <p style={{ fontSize: 13, color: "#4A5E65", margin: 0 }}>
+                        Select a shape on the diagram to view its details
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Footer Actions */}
+              <div style={{
+                padding: "12px 20px", borderTop: "1px solid #D7E1E5",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+              }}>
+                {/* Approve all checkbox */}
+                <label
+                  onClick={() => {
+                    if (allResolved) {
+                      setResolvedItems({});
+                    } else {
+                      const all = {};
+                      mappedItems.forEach((m) => { all[m.id] = m.suggestions[0]; });
+                      setResolvedItems(all);
+                    }
+                  }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
+                    fontSize: 13, fontWeight: 500, color: "#172B31", fontFamily: "Lato",
+                    userSelect: "none",
+                  }}
+                >
+                  <div style={{
+                    width: 18, height: 18, borderRadius: 3, flexShrink: 0,
+                    border: allResolved ? "none" : "1.5px solid #BDCBD0",
+                    background: allResolved ? "#2D7524" : "white",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all 0.15s",
+                  }}>
+                    {allResolved && (
+                      <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
+                        <path d="M3 7L6 10L11 4" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </div>
+                  Approve all
+                </label>
+
+                <SNButton variant="primary" size="md" disabled={!allResolved} onClick={() => { setPublishName(diagramName); setShowPublishModal(true); }}>
+                  Publish
+                </SNButton>
+              </div>
+            </div>
+            )}
+
+            {/* Narrow icon bar — rightmost edge */}
+            <div style={{
+              width: 36, background: "#E5EDF0", borderLeft: "1px solid #D7E1E5",
+              display: "flex", flexDirection: "column", alignItems: "center",
+              paddingTop: 10, gap: 4, flexShrink: 0,
+            }}>
+              {/* Sparkle / Pin icon — review tab */}
+              <button onClick={() => {
+                if (panelOpen && rightTab === "review") { setPanelOpen(false); }
+                else { setRightTab("review"); setPanelOpen(true); }
+              }} style={{
+                width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center",
+                background: panelOpen && rightTab === "review" ? "white" : "transparent",
+                border: "none", borderRadius: 6, cursor: "pointer", position: "relative",
+                color: panelOpen && rightTab === "review" ? "#032D42" : "#4A5E65",
+                boxShadow: panelOpen && rightTab === "review" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+              }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 1L9.5 6.5L15 8L9.5 9.5L8 15L6.5 9.5L1 8L6.5 6.5L8 1Z" fill="currentColor" opacity="0.8"/>
+                </svg>
+                {unresolvedCount > 0 && !(panelOpen && rightTab === "review") && (
+                  <span style={{
+                    position: "absolute", top: -2, right: -2, width: 14, height: 14,
+                    borderRadius: 7, background: "#E27918", fontSize: 8, fontWeight: 700,
+                    color: "white", display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>{unresolvedCount}</span>
+                )}
+              </button>
+              {/* Info icon — details tab */}
+              <button onClick={() => {
+                if (panelOpen && rightTab === "details") { setPanelOpen(false); }
+                else { setRightTab("details"); setPanelOpen(true); }
+              }} style={{
+                width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center",
+                background: panelOpen && rightTab === "details" ? "white" : "transparent",
+                border: "none", borderRadius: 6, cursor: "pointer",
+                color: panelOpen && rightTab === "details" ? "#032D42" : "#4A5E65",
+                boxShadow: panelOpen && rightTab === "details" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+              }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
+                  <path d="M8 7V11M8 5.5V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ===== PUBLISH CONFIRMATION MODAL ===== */}
+        {showPublishModal && (
+          <div style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 500,
+          }}>
+            <div style={{
+              background: "white", borderRadius: 8, width: 440, padding: 0,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+            }}>
+              {/* Modal header */}
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "20px 28px 16px",
+              }}>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: "#172B31", margin: 0, fontFamily: FONT_HEADER }}>
+                  Publish diagram
+                </h2>
+                <button onClick={() => setShowPublishModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#4A5E65", padding: 4 }}>
+                  <Icons.Close />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div style={{ padding: "0 28px 24px" }}>
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "#172B31", fontFamily: FONT_BODY, display: "block", marginBottom: 6 }}>
+                    Name *
+                  </label>
+                  <input
+                    value={publishName}
+                    onChange={(e) => setPublishName(e.target.value)}
+                    style={{
+                      width: "100%", fontSize: 13, fontFamily: FONT_BODY, color: "#172B31",
+                      border: "1px solid #BDCBD0", borderRadius: 4, padding: "8px 12px",
+                      outline: "none", boxSizing: "border-box",
+                      transition: "border-color 0.15s",
+                    }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = "#0080A3"; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = "#BDCBD0"; }}
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div style={{
+                display: "flex", justifyContent: "flex-end", gap: 10,
+                padding: "14px 28px", borderTop: "1px solid #E5EDF0",
+              }}>
+                <SNButton variant="tertiary" size="md" onClick={() => setShowPublishModal(false)}>Cancel</SNButton>
+                <SNButton variant="primary" size="md" onClick={() => { setDiagramName(publishName); setShowPublishModal(false); setStep("published"); }}>Publish</SNButton>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Sub Components ---
+
+function Sidebar() {
+  const icons = [Icons.Home, Icons.List, Icons.Doc, Icons.Users, Icons.Settings];
+  return (
+    <div style={{
+      width: 48, background: "linear-gradient(to bottom, #083344, #0369A1, #4D7C0F)",
+      display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 12, gap: 4,
+    }}>
+      {icons.map((Icon, i) => (
+        <button key={i} style={{
+          width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
+          background: i === 2 ? "rgba(255,255,255,0.15)" : "transparent",
+          border: "none", borderRadius: 6, cursor: "pointer", color: "rgba(255,255,255,0.8)",
+        }}>
+          <Icon />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TopNav() {
+  return (
+    <div style={{
+      height: 48, background: "#032D42", display: "flex", alignItems: "center",
+      justifyContent: "space-between", padding: "0 16px",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+        <span style={{ color: "white", fontSize: 16, fontWeight: 700, fontFamily: FONT_BODY, letterSpacing: 0.3 }}>
+          service<span style={{ fontWeight: 400 }}>now</span>
+        </span>
+        {["All", "Favorites", "History", "Workspaces", "Admin"].map((t) => (
+          <span key={t} style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, cursor: "pointer", fontFamily: FONT_BODY, fontWeight: 400 }}>{t}</span>
+        ))}
+      </div>
+
+      {/* Workspace pill */}
+      <div style={{
+        border: "1px solid rgba(255,255,255,0.35)", borderRadius: 20, padding: "5px 14px",
+        display: "flex", alignItems: "center", gap: 6, cursor: "pointer",
+      }}>
+        <span style={{ color: "white", fontSize: 13, fontFamily: FONT_BODY, fontWeight: 400 }}>Enterprise Architecture Workspace</span>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path d="M8 2L9.8 5.6L14 6.2L11 9.1L11.7 13.3L8 11.4L4.3 13.3L5 9.1L2 6.2L6.2 5.6L8 2Z" fill="#FBC02D" stroke="#FBC02D" strokeWidth="0.5" strokeLinejoin="round"/>
+        </svg>
+      </div>
+
+      {/* Now Assist Search */}
+      <div style={{
+        background: "#3B5B66", border: "1px solid #4A6E7A",
+        borderRadius: 4, padding: "3px 0 3px 10px", display: "flex", alignItems: "center", gap: 6, minWidth: 240,
+        cursor: "pointer", height: 28,
+      }}>
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5"/><path d="M10.5 10.5L14 14" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" strokeLinecap="round"/></svg>
+        <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, fontFamily: FONT_BODY, fontWeight: 400, flex: 1 }}>Search or ask Now Assist</span>
+        <div style={{
+          width: 28, height: "100%", borderLeft: "1px solid #4A6E7A",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <svg width="9" height="5" viewBox="0 0 10 6" fill="none"><path d="M1 1L5 5L9 1" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </div>
+      </div>
+
+      {/* Right icons */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {/* Globe */}
+        <span style={{ color: "rgba(255,255,255,0.65)", cursor: "pointer" }}><Icons.Globe /></span>
+        {/* Sparkle / Now Assist */}
+        <span style={{ color: "rgba(255,255,255,0.65)", cursor: "pointer" }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2L10.2 6.8L15 8L10.2 9.2L9 14L7.8 9.2L3 8L7.8 6.8L9 2Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
+        </span>
+        {/* Chat */}
+        <span style={{ color: "rgba(255,255,255,0.65)", cursor: "pointer" }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 4H15V12H10L7 15V12H3Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
+        </span>
+        {/* Bookmark */}
+        <span style={{ color: "rgba(255,255,255,0.65)", cursor: "pointer" }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M5 3H13V15L9 12L5 15V3Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
+        </span>
+        {/* Help */}
+        <span style={{ color: "rgba(255,255,255,0.65)", cursor: "pointer" }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.3"/><path d="M7 7C7 5.9 7.9 5 9 5C10.1 5 11 5.9 11 7C11 8 9.5 8 9.5 9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><circle cx="9.5" cy="12" r="0.8" fill="currentColor"/></svg>
+        </span>
+        {/* Bell */}
+        <span style={{ color: "rgba(255,255,255,0.65)", cursor: "pointer" }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M7 14C7 15.1 7.9 16 9 16C10.1 16 11 15.1 11 14M4 11V8C4 5.24 6.24 3 9 3C11.76 3 14 5.24 14 8V11L15.5 13H2.5L4 11Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
+        </span>
+        {/* User avatar */}
+        <div style={{
+          width: 28, height: 28, borderRadius: "50%", 
+          background: "linear-gradient(135deg, #4EA800, #0080A3)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 11, color: "white", fontWeight: 700, fontFamily: FONT_BODY,
+          border: "1.5px solid rgba(255,255,255,0.3)",
+        }}>SL</div>
+      </div>
+    </div>
+  );
+}
+
+function TabBar({ activeTab, onClose }) {
+  const tabs = [
+    { id: "modeling", label: "Enterprise Modeling an…", icon: Icons.Doc },
+    { id: "import", label: "Create diagram from image", icon: Icons.Sparkle },
+  ];
+  return (
+    <div style={{
+      display: "flex", alignItems: "flex-end", height: 40,
+      background: "#A9CDD8", padding: "4px 4px 0", borderTopLeftRadius: 8,
+    }}>
+      {tabs.map((tab, idx) => {
+        const isActive = tab.id === activeTab;
+        return (
+          <div key={tab.id} style={{ display: "flex", alignItems: "center", position: "relative" }}>
+            <div
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                width: 176, height: 36, padding: "0 0 0 12px",
+                borderRadius: isActive ? "8px 8px 0 0" : 8,
+                background: isActive ? "#FFFFFF" : "transparent",
+                boxShadow: isActive ? "0 -4px 8px rgba(0,0,0,0.04)" : "none",
+                cursor: "pointer", transition: "background 0.15s",
+                position: "relative",
+              }}
+              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.5)"; }}
+              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+            >
+              <span style={{ width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", color: isActive ? "#4A5E65" : "#172B31", flexShrink: 0 }}>
+                <tab.icon />
+              </span>
+              <span style={{
+                flex: 1, fontSize: 14, fontFamily: FONT_BODY, fontWeight: 400,
+                color: isActive ? "#172B31" : "#172B31",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                lineHeight: "20px",
+              }}>
+                {tab.label}
+              </span>
+              <span style={{
+                width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center",
+                color: isActive ? "#4A5E65" : "#172B31", cursor: "pointer",
+                borderRadius: 4, flexShrink: 0, marginRight: 4,
+                fontSize: 12,
+              }}
+                onClick={(e) => { e.stopPropagation(); if (onClose) onClose(tab.id); }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = isActive ? "#E5EDF0" : "rgba(255,255,255,0.1)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                ×
+              </span>
+            </div>
+            {/* Divider between unselected tabs */}
+            {!isActive && idx < tabs.length - 1 && tabs[idx + 1]?.id !== activeTab && (
+              <div style={{
+                width: 0, height: 20, borderRight: "1px solid rgba(0,0,0,0.1)",
+                margin: "0 1px", alignSelf: "center",
+              }} />
+            )}
+          </div>
+        );
+      })}
+      {/* Spacer + overflow dots */}
+      <div style={{ flex: 1 }} />
+      <span style={{
+        width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+        color: "#172B31", cursor: "pointer", borderRadius: 4, marginRight: 4, flexShrink: 0,
+      }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.06)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+      >
+        <Icons.Dots />
+      </span>
+    </div>
+  );
+}
+
+function ToggleSwitch({ checked, onChange }) {
+  return (
+    <div onClick={onChange} style={{
+      width: 34, height: 18, borderRadius: 9, cursor: "pointer",
+      background: checked ? "#0080A3" : "#BDCBD0", position: "relative",
+      transition: "background 0.2s",
+    }}>
+      <div style={{
+        width: 14, height: 14, borderRadius: "50%", background: "white",
+        position: "absolute", top: 2,
+        left: checked ? 18 : 2, transition: "left 0.2s",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+      }} />
+    </div>
+  );
+}
+
+function ReviewSection({ icon, title, count, open, onToggle, children, badgeColor }) {
+  return (
+    <div style={{ borderBottom: "1px solid #E5EDF0" }}>
+      <button onClick={onToggle} style={{
+        display: "flex", alignItems: "center", gap: 8, width: "100%",
+        padding: "12px 16px", background: "none", border: "none",
+        cursor: "pointer", textAlign: "left",
+      }}>
+        {icon}
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#172B31", flex: 1, fontFamily: "Lato" }}>{title}</span>
+        <span style={{
+          fontSize: 11, fontWeight: 700, color: "white", minWidth: 20, height: 20,
+          borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+          background: badgeColor || "#597178",
+        }}>
+          {count}
+        </span>
+        <span style={{ color: "#4A5E65" }}>
+          {open ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+        </span>
+      </button>
+      {open && <div style={{ paddingBottom: 4 }}>{children}</div>}
+    </div>
+  );
+}
+
+function ReviewItem({ item, iconType, selected, onClick, resolved, onApprove }) {
+  return (
+    <div
+      style={{
+        margin: "0 12px 8px", padding: "12px 14px", borderRadius: 8,
+        border: selected ? "1.5px solid #0080A3" : "1px solid #D7E1E5",
+        background: resolved ? "#F0FAF0" : selected ? "#F2F9FA" : "white",
+        cursor: "pointer",
+        transition: "border-color 0.15s, background 0.15s, box-shadow 0.15s",
+        boxShadow: selected ? "0 1px 4px rgba(0,128,163,0.08)" : "0 1px 2px rgba(0,0,0,0.03)",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {/* Checkbox */}
+        <div
+          onClick={(e) => { e.stopPropagation(); if (onApprove) onApprove(); }}
+          style={{
+            width: 20, height: 20, borderRadius: 4, flexShrink: 0, cursor: "pointer",
+            border: resolved ? "none" : "1.5px solid #BDCBD0",
+            background: resolved ? "#2D7524" : "white",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all 0.15s",
+          }}
+        >
+          {resolved && (
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+              <path d="M3 7L6 10L11 4" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
+        </div>
+
+        <span style={{ flexShrink: 0 }}>
+          {iconType === "added" && <Icons.PlusCircle />}
+          {iconType === "warning" && (resolved ? <Icons.PlusCircle /> : <Icons.WarningCircle />)}
+          {iconType === "edited" && <Icons.EditCircle />}
+          {iconType === "deleted" && <Icons.DeleteCircle />}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }} onClick={onClick}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: resolved ? "#4A5E65" : "#172B31", fontFamily: FONT_HEADER, textDecoration: resolved ? "line-through" : "none" }}>
+            {item.name || item.title}
+          </div>
+          <div style={{ fontSize: 11, color: "#92ABB4", marginTop: 2, fontFamily: "Lato" }}>
+            {item.subtitle || ""}
+            {item.subtitle && " · "}
+            <span style={{ color: "#4A5E65" }}>{resolved ? resolved : item.detail}</span>
+          </div>
+          {resolved && (
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 3, marginTop: 4,
+              fontSize: 10, color: "#2D7524", fontWeight: 600,
+            }}>
+              <Icons.Check /> Approved
+            </span>
+          )}
+        </div>
+        <span onClick={onClick} style={{ flexShrink: 0, color: "#92ABB4", transition: "transform 0.2s", transform: selected ? "rotate(180deg)" : "rotate(0deg)" }}>
+          <Icons.ChevronDown />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function DiagramToolbar({ name }) {
+  return (
+    <div style={{ flexShrink: 0 }}>
+      {/* Top row: diagram name, version, status, share */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "6px 16px", background: "white", borderBottom: "1px solid #E5EDF0",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Diagram icon */}
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <rect x="2" y="2" width="7" height="7" rx="1.5" stroke="#4A5E65" strokeWidth="1.2"/>
+            <rect x="11" y="2" width="7" height="7" rx="1.5" stroke="#4A5E65" strokeWidth="1.2"/>
+            <rect x="2" y="11" width="7" height="7" rx="1.5" stroke="#4A5E65" strokeWidth="1.2"/>
+            <line x1="14.5" y1="9" x2="14.5" y2="11" stroke="#4A5E65" strokeWidth="1"/>
+            <line x1="5.5" y1="9" x2="5.5" y2="11" stroke="#4A5E65" strokeWidth="1"/>
+          </svg>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#172B31", fontFamily: "Lato" }}>{name}</span>
+          {/* Version pill */}
+          <span style={{
+            fontSize: 11, color: "#00536A", background: "#D9ECF1", borderRadius: 10,
+            padding: "2px 10px", fontWeight: 500, fontFamily: "Lato", display: "inline-flex", alignItems: "center", gap: 4,
+          }}>
+            1.0 - Initial version
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M2 3L4 5L6 3" stroke="#00536A" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </span>
+          {/* Info icon */}
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ color: "#92ABB4", cursor: "pointer" }}>
+            <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2"/>
+            <path d="M8 7V11M8 5.5V5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+          </svg>
+          <span style={{ fontSize: 12, color: "#4A5E65", fontFamily: "Lato" }}>Published</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button style={{
+            display: "flex", alignItems: "center", gap: 5, background: "#032D42", color: "white",
+            border: "none", borderRadius: 4, padding: "5px 14px", fontSize: 12, fontWeight: 600,
+            cursor: "pointer", fontFamily: "Lato",
+          }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 7V10H10V7M6 2V8M6 2L3.5 4.5M6 2L8.5 4.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Share
+          </button>
+          <button style={{
+            width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+            background: "white", border: "1px solid #D7E1E5", borderRadius: 4, cursor: "pointer", color: "#4A5E65",
+          }}>
+            <Icons.Dots />
+          </button>
+        </div>
+      </div>
+      {/* Bottom row: layout, undo, redo */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 2,
+        padding: "4px 16px", background: "white", borderBottom: "1px solid #D7E1E5",
+      }}>
+        {/* Layout toggle */}
+        <button style={{
+          width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+          background: "white", border: "1px solid #D7E1E5", borderRadius: 4, cursor: "pointer", color: "#4A5E65",
+        }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <rect x="1" y="1.5" width="4.5" height="11" rx="1" stroke="currentColor" strokeWidth="1.1"/>
+            <rect x="7" y="1.5" width="6" height="11" rx="1" stroke="currentColor" strokeWidth="1.1"/>
+          </svg>
+        </button>
+        <div style={{ width: 1, height: 18, background: "#E5EDF0", margin: "0 6px" }} />
+        {/* Undo */}
+        <button style={{
+          width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+          background: "white", border: "none", borderRadius: 4, cursor: "pointer", color: "#92ABB4",
+        }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M4 5L2 3L4 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M2 3H9C10.66 3 12 4.34 12 6V6C12 7.66 10.66 9 9 9H5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+          </svg>
+        </button>
+        {/* Redo */}
+        <button style={{
+          width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+          background: "white", border: "none", borderRadius: 4, cursor: "pointer", color: "#92ABB4",
+        }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M10 5L12 3L10 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M12 3H5C3.34 3 2 4.34 2 6V6C2 7.66 3.34 9 5 9H9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ShapeDetailsForm({ detail }) {
+  const fieldStyle = { marginBottom: 16 };
+  const labelStyle = { display: "block", fontSize: 11, fontWeight: 400, color: "#4A5E65", marginBottom: 4, fontFamily: "Lato" };
+  const inputStyle = {
+    width: "100%", padding: "8px 10px", fontSize: 13, fontWeight: 600, color: "#172B31",
+    border: "none", borderBottom: "1px solid #D7E1E5", background: "transparent",
+    fontFamily: "Lato", outline: "none", boxSizing: "border-box",
+  };
+  const selectStyle = {
+    ...inputStyle, appearance: "none", cursor: "pointer",
+    backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%234A5E65' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E\")",
+    backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center",
+  };
+
+  const fields = [
+    { label: "Shape type", value: detail.shapeType },
+    { label: "Name *", value: detail.name },
+    { label: "Business process", value: detail.businessProcess },
+    { label: "Application type", value: detail.appType, isSelect: true },
+    { label: "Architecture type", value: detail.archType, isSelect: true },
+    { label: "Install type", value: detail.installType, isSelect: true },
+    { label: "Application category *", value: detail.appCategory },
+    { label: "Application family", value: detail.appFamily },
+    { label: "Model ID", value: detail.modelId },
+    { label: "Status", value: detail.status },
+    { label: "Life Cycle Stage", value: detail.lifecycleStage },
+    { label: "Life Cycle Stage Status", value: detail.lifecycleStatus },
+  ];
+
+  return (
+    <div style={{ padding: "20px 20px 12px" }}>
+      {/* Title bar */}
+      <h3 style={{ fontSize: 16, fontWeight: 700, color: "#172B31", margin: "0 0 20px", fontFamily: FONT_HEADER }}>
+        {detail.name}
+      </h3>
+      {fields.map((f, i) => (
+        <div key={i} style={fieldStyle}>
+          <label style={labelStyle}>{f.label}</label>
+          {f.isSelect ? (
+            <select defaultValue={f.value} style={selectStyle}>
+              <option>{f.value}</option>
+            </select>
+          ) : (
+            <input type="text" defaultValue={f.value} style={inputStyle} readOnly />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ShapesPanel() {
+  const [searchVal, setSearchVal] = useState("");
+  const [sections, setSections] = useState({ general: true, ea: true, archimate: false });
+  const toggle = (key) => setSections((p) => ({ ...p, [key]: !p[key] }));
+
+  const iconSize = 32;
+  const iconStyle = {
+    width: iconSize, height: iconSize, display: "flex", alignItems: "center", justifyContent: "center",
+    cursor: "grab", borderRadius: 4, transition: "background 0.12s",
+  };
+
+  // General shapes as small SVG icons
+  const generalShapes = [
+    /* Star */    <svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,3 14.5,8.5 20.5,9.2 16,13.5 17.2,19.5 12,16.5 6.8,19.5 8,13.5 3.5,9.2 9.5,8.5" fill="none" stroke="#4A5E65" strokeWidth="1.3"/></svg>,
+    /* Circle */  <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="7" fill="none" stroke="#4A5E65" strokeWidth="1.3"/></svg>,
+    /* T text */  <svg viewBox="0 0 24 24" width="20" height="20"><text x="12" y="17" textAnchor="middle" fill="#4A5E65" fontSize="16" fontWeight="700" fontFamily="Lato">T</text></svg>,
+    /* Diamond */ <svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,4 20,12 12,20 4,12" fill="none" stroke="#4A5E65" strokeWidth="1.3"/></svg>,
+    /* X circle */<svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="7" fill="none" stroke="#4A5E65" strokeWidth="1.3"/><path d="M8 8L16 16M16 8L8 16" stroke="#4A5E65" strokeWidth="1.1"/></svg>,
+    /* Pentagon */<svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,4 20,10 17,19 7,19 4,10" fill="none" stroke="#4A5E65" strokeWidth="1.3"/></svg>,
+    /* Triangle */<svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,5 21,19 3,19" fill="none" stroke="#4A5E65" strokeWidth="1.3"/></svg>,
+    /* Square */  <svg viewBox="0 0 24 24" width="20" height="20"><rect x="5" y="5" width="14" height="14" fill="none" stroke="#4A5E65" strokeWidth="1.3"/></svg>,
+    /* Arrow */   <svg viewBox="0 0 24 24" width="20" height="20"><path d="M4 12H18M14 7L19 12L14 17" fill="none" stroke="#4A5E65" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+    /* Rect */    <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="6" width="16" height="12" fill="none" stroke="#4A5E65" strokeWidth="1.3"/></svg>,
+    /* Burst */   <svg viewBox="0 0 24 24" width="18" height="18"><polygon points="12,2 14,8 20,6 16,11 22,12 16,13 20,18 14,16 12,22 10,16 4,18 8,13 2,12 8,11 4,6 10,8" fill="none" stroke="#4A5E65" strokeWidth="1"/></svg>,
+    /* Chevron */ <svg viewBox="0 0 24 24" width="20" height="20"><path d="M4 6L12 12L4 18" fill="none" stroke="#4A5E65" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+    /* Half */    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 5A7 7 0 0 1 12 19Z" fill="none" stroke="#4A5E65" strokeWidth="1.3"/><line x1="12" y1="5" x2="12" y2="19" stroke="#4A5E65" strokeWidth="1.3"/></svg>,
+    /* Person */  <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="7" r="3" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><path d="M12 11V18M8 14H16M10 22L12 18L14 22" stroke="#4A5E65" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+    /* Chat */    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 6H19V16H13L9 19V16H5Z" fill="none" stroke="#4A5E65" strokeWidth="1.3" strokeLinejoin="round"/></svg>,
+    /* Sq small */<svg viewBox="0 0 24 24" width="20" height="20"><rect x="5" y="5" width="14" height="14" rx="1" fill="none" stroke="#4A5E65" strokeWidth="1.3"/></svg>,
+    /* Hexagon */ <svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,4 19,8 19,16 12,20 5,16 5,8" fill="none" stroke="#4A5E65" strokeWidth="1.3"/></svg>,
+    /* DbArrow */ <svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 12H19M8 8L4 12L8 16M16 8L20 12L16 16" fill="none" stroke="#4A5E65" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+    /* Callout */ <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="4" width="16" height="12" fill="none" stroke="#4A5E65" strokeWidth="1.3"/><path d="M8 16L10 20L12 16" stroke="#4A5E65" strokeWidth="1.3" strokeLinejoin="round"/></svg>,
+    /* Page */    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 4H15L19 8V20H6Z" fill="none" stroke="#4A5E65" strokeWidth="1.3" strokeLinejoin="round"/><path d="M15 4V8H19" stroke="#4A5E65" strokeWidth="1.3" strokeLinejoin="round"/></svg>,
+  ];
+
+  const eaShapes = [
+    /* BizApp */  <svg viewBox="0 0 24 24" width="20" height="20"><rect x="3" y="6" width="18" height="14" rx="2" fill="none" stroke="#4A5E65" strokeWidth="1.3"/><line x1="3" y1="10" x2="21" y2="10" stroke="#4A5E65" strokeWidth="1"/></svg>,
+    /* OrgChart */<svg viewBox="0 0 24 24" width="20" height="20"><rect x="8" y="3" width="8" height="5" rx="1" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><rect x="2" y="14" width="7" height="5" rx="1" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><rect x="15" y="14" width="7" height="5" rx="1" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><line x1="12" y1="8" x2="12" y2="11" stroke="#4A5E65" strokeWidth="1"/><line x1="5.5" y1="11" x2="18.5" y2="11" stroke="#4A5E65" strokeWidth="1"/><line x1="5.5" y1="11" x2="5.5" y2="14" stroke="#4A5E65" strokeWidth="1"/><line x1="18.5" y1="11" x2="18.5" y2="14" stroke="#4A5E65" strokeWidth="1"/></svg>,
+    /* Globe */   <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="8" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><ellipse cx="12" cy="12" rx="4" ry="8" fill="none" stroke="#4A5E65" strokeWidth="0.8"/><line x1="4" y1="12" x2="20" y2="12" stroke="#4A5E65" strokeWidth="0.8"/></svg>,
+    /* Server */  <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><line x1="4" y1="10" x2="20" y2="10" stroke="#4A5E65" strokeWidth="0.8"/><line x1="4" y1="16" x2="20" y2="16" stroke="#4A5E65" strokeWidth="0.8"/><circle cx="17" cy="7" r="1" fill="#4A5E65"/></svg>,
+    /* Grid */    <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="4" width="16" height="16" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><line x1="4" y1="12" x2="20" y2="12" stroke="#4A5E65" strokeWidth="0.8"/><line x1="12" y1="4" x2="12" y2="20" stroke="#4A5E65" strokeWidth="0.8"/></svg>,
+    /* Agent */   <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="10" cy="8" r="3" fill="none" stroke="#4A5E65" strokeWidth="1.1"/><path d="M16 6L19 3M19 6L16 3" stroke="#4A5E65" strokeWidth="1.1" strokeLinecap="round"/><path d="M4 18C4 15 6.5 13 10 13" stroke="#4A5E65" strokeWidth="1.1" strokeLinecap="round"/></svg>,
+    /* Mapping */ <svg viewBox="0 0 24 24" width="20" height="20"><rect x="3" y="4" width="8" height="6" rx="1" fill="none" stroke="#4A5E65" strokeWidth="1.1"/><rect x="13" y="14" width="8" height="6" rx="1" fill="none" stroke="#4A5E65" strokeWidth="1.1"/><path d="M11 7L13 7M11 17L13 17M12 7V17" stroke="#4A5E65" strokeWidth="0.9" strokeDasharray="2 1"/></svg>,
+    /* Key */     <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="9" cy="12" r="4" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><path d="M13 12H21M18 9V12M21 10V14" stroke="#4A5E65" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+    /* Config */  <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><circle cx="12" cy="12" r="3" fill="none" stroke="#4A5E65" strokeWidth="1"/><path d="M12 5V9M12 15V19M5 12H9M15 12H19" stroke="#4A5E65" strokeWidth="0.8"/></svg>,
+    /* Building */<svg viewBox="0 0 24 24" width="20" height="20"><rect x="6" y="4" width="12" height="17" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><rect x="9" y="7" width="2" height="2" fill="#4A5E65" opacity="0.4"/><rect x="13" y="7" width="2" height="2" fill="#4A5E65" opacity="0.4"/><rect x="9" y="11" width="2" height="2" fill="#4A5E65" opacity="0.4"/><rect x="13" y="11" width="2" height="2" fill="#4A5E65" opacity="0.4"/><rect x="10" y="17" width="4" height="4" fill="none" stroke="#4A5E65" strokeWidth="0.8"/></svg>,
+    /* Laptop */  <svg viewBox="0 0 24 24" width="20" height="20"><rect x="5" y="5" width="14" height="10" rx="1.5" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><path d="M2 17H22" stroke="#4A5E65" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+    /* Process */ <svg viewBox="0 0 24 24" width="20" height="20"><rect x="3" y="6" width="7" height="5" rx="1" fill="none" stroke="#4A5E65" strokeWidth="1"/><rect x="14" y="6" width="7" height="5" rx="1" fill="none" stroke="#4A5E65" strokeWidth="1"/><rect x="3" y="15" width="7" height="5" rx="1" fill="none" stroke="#4A5E65" strokeWidth="1"/><rect x="14" y="15" width="7" height="5" rx="1" fill="none" stroke="#4A5E65" strokeWidth="1"/><path d="M10 8.5H14M10 17.5H14M6.5 11V15M17.5 11V15" stroke="#4A5E65" strokeWidth="0.8" strokeDasharray="2 1"/></svg>,
+    /* Chip */    <svg viewBox="0 0 24 24" width="20" height="20"><rect x="6" y="6" width="12" height="12" rx="2" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><path d="M9 6V3M12 6V3M15 6V3M9 21V18M12 21V18M15 21V18M6 9H3M6 12H3M6 15H3M21 9H18M21 12H18M21 15H18" stroke="#4A5E65" strokeWidth="0.9" strokeLinecap="round"/></svg>,
+    /* Notepad */ <svg viewBox="0 0 24 24" width="20" height="20"><rect x="5" y="3" width="14" height="18" rx="2" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><line x1="8" y1="8" x2="16" y2="8" stroke="#4A5E65" strokeWidth="0.9"/><line x1="8" y1="11" x2="16" y2="11" stroke="#4A5E65" strokeWidth="0.9"/><line x1="8" y1="14" x2="13" y2="14" stroke="#4A5E65" strokeWidth="0.9"/></svg>,
+    /* Database */<svg viewBox="0 0 24 24" width="20" height="20"><ellipse cx="12" cy="7" rx="7" ry="3" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><path d="M5 7V17C5 18.66 8.13 20 12 20C15.87 20 19 18.66 19 17V7" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><path d="M5 12C5 13.66 8.13 15 12 15C15.87 15 19 13.66 19 12" fill="none" stroke="#4A5E65" strokeWidth="0.8"/></svg>,
+    /* ChatBub */ <svg viewBox="0 0 24 24" width="20" height="20"><path d="M4 5H20V15H12L8 18V15H4Z" fill="none" stroke="#4A5E65" strokeWidth="1.2" strokeLinejoin="round"/><circle cx="8" cy="10" r="1" fill="#4A5E65" opacity="0.5"/><circle cx="12" cy="10" r="1" fill="#4A5E65" opacity="0.5"/><circle cx="16" cy="10" r="1" fill="#4A5E65" opacity="0.5"/></svg>,
+    /* Target */  <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="8" fill="none" stroke="#4A5E65" strokeWidth="1.1"/><circle cx="12" cy="12" r="5" fill="none" stroke="#4A5E65" strokeWidth="0.9"/><circle cx="12" cy="12" r="2" fill="none" stroke="#4A5E65" strokeWidth="0.8"/></svg>,
+    /* Tool */    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 6L10 10M14 14L18 18" stroke="#4A5E65" strokeWidth="1.3" strokeLinecap="round"/><path d="M18 6L14 10M10 14L6 18" stroke="#4A5E65" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+    /* Gear */    <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="3.5" fill="none" stroke="#4A5E65" strokeWidth="1.2"/><path d="M12 3V5.5M12 18.5V21M3 12H5.5M18.5 12H21M5.6 5.6L7.4 7.4M16.6 16.6L18.4 18.4M18.4 5.6L16.6 7.4M7.4 16.6L5.6 18.4" stroke="#4A5E65" strokeWidth="1" strokeLinecap="round"/></svg>,
+  ];
+
+  const archiShapes = [
+    /* BizActor */ <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="7" r="3" fill="none" stroke="#C8A800" strokeWidth="1.3"/><path d="M12 10V16M8 13H16M9 20L12 16L15 20" stroke="#C8A800" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+    /* BizCollab */<svg viewBox="0 0 24 24" width="20" height="20"><circle cx="8" cy="12" r="5" fill="none" stroke="#C8A800" strokeWidth="1.2"/><circle cx="16" cy="12" r="5" fill="none" stroke="#C8A800" strokeWidth="1.2"/></svg>,
+    /* BizProc */ <svg viewBox="0 0 24 24" width="20" height="20"><path d="M4 8H16L20 12L16 16H4V8Z" fill="none" stroke="#C8A800" strokeWidth="1.3" strokeLinejoin="round"/></svg>,
+    /* BizObj */  <svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,3 20,9 20,20 4,20 4,9" fill="none" stroke="#C8A800" strokeWidth="1.3" strokeLinejoin="round"/></svg>,
+    /* BizSvc */  <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="#C8A800" strokeWidth="1.3"/><circle cx="12" cy="12" r="3" fill="none" stroke="#C8A800" strokeWidth="0.9"/></svg>,
+    /* BizRole */ <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="8" r="3.5" fill="none" stroke="#C8A800" strokeWidth="1.2"/><path d="M5 20C5 16.5 8 14 12 14C16 14 19 16.5 19 20" stroke="#C8A800" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+    /* BizEvent */<svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="#C8A800" strokeWidth="1.2"/><line x1="4" y1="9" x2="20" y2="9" stroke="#C8A800" strokeWidth="0.9"/></svg>,
+    /* BizFlow */ <svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 12H19M15 8L19 12L15 16" fill="none" stroke="#C8A800" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+    /* BizInt */  <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="#C8A800" strokeWidth="1.2"/><line x1="12" y1="6" x2="12" y2="18" stroke="#C8A800" strokeWidth="0.8" strokeDasharray="2 1"/></svg>,
+    /* BizFunc */ <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="4" width="16" height="16" rx="8" fill="none" stroke="#C8A800" strokeWidth="1.3"/><line x1="8" y1="12" x2="16" y2="12" stroke="#C8A800" strokeWidth="1"/></svg>,
+  ];
+
+  return (
+    <div style={{
+      width: 220, background: "white", borderRight: "1px solid #D7E1E5",
+      display: "flex", flexDirection: "column", overflow: "hidden", flexShrink: 0,
+    }}>
+      {/* Header */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "14px 16px 10px", borderBottom: "1px solid #E5EDF0",
+      }}>
+        <span style={{ fontSize: 16, fontWeight: 700, color: "#172B31", fontFamily: FONT_HEADER }}>Shapes</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ cursor: "pointer", color: "#4A5E65" }}>
+          <rect x="2" y="2" width="4" height="4" rx="0.5" fill="currentColor" opacity="0.5" />
+          <rect x="8" y="2" width="4" height="4" rx="0.5" fill="currentColor" opacity="0.5" />
+          <rect x="2" y="8" width="4" height="4" rx="0.5" fill="currentColor" opacity="0.5" />
+          <rect x="8" y="8" width="4" height="4" rx="0.5" fill="currentColor" opacity="0.5" />
+        </svg>
+      </div>
+
+      {/* Search */}
+      <div style={{ padding: "10px 12px 6px" }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6, padding: "6px 10px",
+          border: "1px solid #BDCBD0", borderRadius: 4, background: "white",
+        }}>
+          <input
+            type="text" placeholder="Search" value={searchVal}
+            onChange={(e) => setSearchVal(e.target.value)}
+            style={{
+              border: "none", outline: "none", flex: 1, fontSize: 12.5,
+              fontFamily: "Lato", color: "#172B31", background: "transparent",
+            }}
+          />
+          <span style={{ color: "#92ABB4" }}><Icons.Search /></span>
+        </div>
+      </div>
+
+      {/* Scrollable sections */}
+      <div style={{ flex: 1, overflow: "auto" }}>
+        {/* General */}
+        <button onClick={() => toggle("general")} style={{
+          display: "flex", alignItems: "center", gap: 6, width: "100%",
+          padding: "10px 14px", background: "#F3F8F9", border: "none", borderTop: "1px solid #E5EDF0",
+          borderBottom: "1px solid #E5EDF0", cursor: "pointer", textAlign: "left",
+        }}>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="#92ABB4"><circle cx="2" cy="2" r="1.2"/><circle cx="2" cy="5" r="1.2"/><circle cx="2" cy="8" r="1.2"/><circle cx="5" cy="2" r="1.2"/><circle cx="5" cy="5" r="1.2"/><circle cx="5" cy="8" r="1.2"/></svg>
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "#172B31", fontFamily: "Lato" }}>General</span>
+          {sections.general ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+        </button>
+        {sections.general && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 2, padding: "10px 12px" }}>
+            {generalShapes.map((shape, i) => (
+              <div key={i} style={iconStyle}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#F2F9FA")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >{shape}</div>
+            ))}
+          </div>
+        )}
+
+        {/* Enterprise Architecture */}
+        <button onClick={() => toggle("ea")} style={{
+          display: "flex", alignItems: "center", gap: 6, width: "100%",
+          padding: "10px 14px", background: "#F3F8F9", border: "none", borderTop: "1px solid #E5EDF0",
+          borderBottom: "1px solid #E5EDF0", cursor: "pointer", textAlign: "left",
+        }}>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="#92ABB4"><circle cx="2" cy="2" r="1.2"/><circle cx="2" cy="5" r="1.2"/><circle cx="2" cy="8" r="1.2"/><circle cx="5" cy="2" r="1.2"/><circle cx="5" cy="5" r="1.2"/><circle cx="5" cy="8" r="1.2"/></svg>
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "#172B31", fontFamily: "Lato" }}>Enterprise architecture</span>
+          {sections.ea ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+        </button>
+        {sections.ea && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 2, padding: "10px 12px" }}>
+            {eaShapes.map((shape, i) => (
+              <div key={i} style={iconStyle}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#F2F9FA")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >{shape}</div>
+            ))}
+          </div>
+        )}
+
+        {/* ArchiMate */}
+        <button onClick={() => toggle("archimate")} style={{
+          display: "flex", alignItems: "center", gap: 6, width: "100%",
+          padding: "10px 14px", background: "#F3F8F9", border: "none", borderTop: "1px solid #E5EDF0",
+          borderBottom: "1px solid #E5EDF0", cursor: "pointer", textAlign: "left",
+        }}>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="#92ABB4"><circle cx="2" cy="2" r="1.2"/><circle cx="2" cy="5" r="1.2"/><circle cx="2" cy="8" r="1.2"/><circle cx="5" cy="2" r="1.2"/><circle cx="5" cy="5" r="1.2"/><circle cx="5" cy="8" r="1.2"/></svg>
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "#172B31", fontFamily: "Lato" }}>ArchiMate</span>
+          {sections.archimate ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+        </button>
+        {sections.archimate && (
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 600, color: "#172B31", padding: "10px 14px 4px", margin: 0, fontFamily: "Lato" }}>Business layer</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 2, padding: "4px 12px 10px" }}>
+              {archiShapes.map((shape, i) => (
+                <div key={i} style={iconStyle}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#F2F9FA")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >{shape}</div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const zoomBtnStyle = {
+  width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center",
+  background: "none", border: "none", cursor: "pointer", color: "#4A5E65", borderRadius: 3,
+};
+
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<ImageToDiagram />);
+  </script>
+</body>
+</html>
